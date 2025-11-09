@@ -18,7 +18,7 @@ class _PerfilTallerScreenState extends State<PerfilTallerScreen> {
   final _direccionController = TextEditingController();
   final _telefonoController = TextEditingController();
   final _emailController = TextEditingController();
-  String? _logoBase64; // solo el Base64 puro
+  String? _logoBase64;
   bool _cargando = false;
 
   @override
@@ -28,24 +28,31 @@ class _PerfilTallerScreenState extends State<PerfilTallerScreen> {
   }
 
   Future<void> _cargarDatos() async {
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.uid)
-        .get();
-
-    final data = doc.data();
-    if (data != null) {
-      _nombreController.text = data['nombreTaller'] ?? '';
-      _direccionController.text = data['direccion'] ?? '';
-      _telefonoController.text = data['telefono'] ?? '';
-      _emailController.text = data['email'] ?? '';
-      setState(() {
-        _logoBase64 = data['logoBase64']; // solo Base64
-      });
+    setState(() => _cargando = true);
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.uid)
+          .get();
+      final data = doc.data();
+      if (data != null) {
+        _nombreController.text = data['nombreTaller'] ?? '';
+        _direccionController.text = data['direccion'] ?? '';
+        _telefonoController.text = data['telefono'] ?? '';
+        _emailController.text = data['email'] ?? '';
+        setState(() {
+          _logoBase64 = data['logoBase64'];
+        });
+      }
+    } catch (e) {
+      // Manejar error si es necesario
+    } finally {
+      if (mounted) {
+        setState(() => _cargando = false);
+      }
     }
   }
 
-  /// Subir logo usando HTML File Picker (Flutter Web)
   Future<void> _subirLogo() async {
     try {
       final input = html.FileUploadInputElement()..accept = 'image/*';
@@ -97,26 +104,34 @@ class _PerfilTallerScreenState extends State<PerfilTallerScreen> {
         'logoBase64': _logoBase64,
       }, SetOptions(merge: true));
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Datos del taller guardados')),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al guardar datos: $e')),
+        SnackBar(
+            content: Text('Error al guardar datos: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error),
       );
     } finally {
-      setState(() => _cargando = false);
+      if (mounted) {
+        setState(() => _cargando = false);
+      }
     }
   }
 
-  /// Encabezado horizontal moderno con logo a la izquierda
-  Widget _buildHeader(Uint8List? logoBytes) {
+  Widget _buildHeader(Uint8List? logoBytes, ColorScheme colorScheme) {
     return Container(
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.symmetric(vertical: 20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [Colors.teal.shade400, Colors.teal.shade700],
+          colors: [
+            colorScheme.primary.withOpacity(0.8),
+            colorScheme.primary,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -131,14 +146,13 @@ class _PerfilTallerScreenState extends State<PerfilTallerScreen> {
       ),
       child: Row(
         children: [
-          // Logo
           GestureDetector(
             onTap: _subirLogo,
             child: Container(
               width: 100,
               height: 100,
               decoration: BoxDecoration(
-                color: Colors.grey[200],
+                color: colorScheme.onPrimary.withOpacity(0.8),
                 borderRadius: BorderRadius.circular(12),
                 image: logoBytes != null
                     ? DecorationImage(
@@ -148,12 +162,12 @@ class _PerfilTallerScreenState extends State<PerfilTallerScreen> {
                     : null,
               ),
               child: logoBytes == null
-                  ? const Icon(Icons.add_a_photo, size: 40, color: Colors.grey)
+                  ? Icon(Icons.add_a_photo,
+                  size: 40, color: colorScheme.primary)
                   : null,
             ),
           ),
           const SizedBox(width: 16),
-          // Datos del taller
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,10 +176,10 @@ class _PerfilTallerScreenState extends State<PerfilTallerScreen> {
                   _nombreController.text.isNotEmpty
                       ? _nombreController.text
                       : 'Nombre del Taller',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: colorScheme.onPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -173,21 +187,24 @@ class _PerfilTallerScreenState extends State<PerfilTallerScreen> {
                   _telefonoController.text.isNotEmpty
                       ? _telefonoController.text
                       : 'Teléfono',
-                  style: const TextStyle(color: Colors.white70),
+                  style:
+                  TextStyle(color: colorScheme.onPrimary.withOpacity(0.8)),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   _direccionController.text.isNotEmpty
                       ? _direccionController.text
                       : 'Dirección',
-                  style: const TextStyle(color: Colors.white70),
+                  style:
+                  TextStyle(color: colorScheme.onPrimary.withOpacity(0.8)),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   _emailController.text.isNotEmpty
                       ? _emailController.text
                       : 'Correo electrónico',
-                  style: const TextStyle(color: Colors.white70),
+                  style:
+                  TextStyle(color: colorScheme.onPrimary.withOpacity(0.8)),
                 ),
               ],
             ),
@@ -199,14 +216,14 @@ class _PerfilTallerScreenState extends State<PerfilTallerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Uint8List? logoBytes = _logoBase64 != null
-        ? base64Decode(_logoBase64!)
-        : null;
+    Uint8List? logoBytes =
+    _logoBase64 != null ? base64Decode(_logoBase64!) : null;
+
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Perfil del Taller'),
-        backgroundColor: Colors.indigo,
       ),
       body: _cargando
           ? const Center(child: CircularProgressIndicator())
@@ -216,47 +233,50 @@ class _PerfilTallerScreenState extends State<PerfilTallerScreen> {
           key: _formKey,
           child: ListView(
             children: [
-              _buildHeader(logoBytes), // encabezado moderno
-              _buildTextField(_nombreController, 'Nombre del Taller'),
+              _buildHeader(logoBytes, colorScheme),
+
+              TextFormField(
+                controller: _nombreController,
+                validator: (v) => v == null || v.isEmpty ? 'Campo obligatorio' : null,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre del Taller',
+                ),
+              ),
               const SizedBox(height: 10),
-              _buildTextField(_direccionController, 'Dirección'),
+              TextFormField(
+                controller: _direccionController,
+                validator: (v) => v == null || v.isEmpty ? 'Campo obligatorio' : null,
+                decoration: const InputDecoration(
+                  labelText: 'Dirección',
+                ),
+              ),
               const SizedBox(height: 10),
-              _buildTextField(_telefonoController, 'Teléfono'),
+              TextFormField(
+                controller: _telefonoController,
+                validator: (v) => v == null || v.isEmpty ? 'Campo obligatorio' : null,
+                decoration: const InputDecoration(
+                  labelText: 'Teléfono',
+                ),
+              ),
               const SizedBox(height: 10),
-              _buildTextField(
-                _emailController,
-                'Correo electrónico',
+              TextFormField(
+                controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
+                validator: (v) => v == null || v.isEmpty ? 'Campo obligatorio' : null,
+                decoration: const InputDecoration(
+                  labelText: 'Correo electrónico',
+                ),
               ),
               const SizedBox(height: 20),
+
               ElevatedButton.icon(
                 onPressed: _guardarDatos,
                 icon: const Icon(Icons.save),
                 label: const Text('Guardar'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.greenAccent,
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildTextField(TextEditingController controller, String label,
-      {TextInputType keyboardType = TextInputType.text}) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      validator: (v) => v == null || v.isEmpty ? 'Campo obligatorio' : null,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }

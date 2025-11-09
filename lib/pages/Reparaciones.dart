@@ -2,9 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-final Color primaryColor = Colors.indigo;
-final Color accentColor = Colors.indigoAccent;
-
 class ReparacionesTab extends StatefulWidget {
   final String uid;
   const ReparacionesTab({super.key, required this.uid});
@@ -83,12 +80,24 @@ class _ReparacionesTabState extends State<ReparacionesTab> {
                   },
                 ),
                 const SizedBox(height: 10),
-                _styledTextField(_maquinaController, "Máquina"),
+                TextFormField(
+                  controller: _maquinaController,
+                  decoration: const InputDecoration(labelText: "Máquina"),
+                  validator: (value) => (value == null || value.isEmpty) ? 'Obligatorio' : null,
+                ),
                 const SizedBox(height: 10),
-                _styledTextField(_problemaController, "Problema"),
+                TextFormField(
+                  controller: _problemaController,
+                  decoration: const InputDecoration(labelText: "Problema"),
+                  validator: (value) => (value == null || value.isEmpty) ? 'Obligatorio' : null,
+                ),
                 const SizedBox(height: 10),
-                _styledTextField(_precioController, "Precio",
-                    keyboardType: TextInputType.number),
+                TextFormField(
+                  controller: _precioController,
+                  decoration: const InputDecoration(labelText: "Precio"),
+                  keyboardType: TextInputType.number,
+                  validator: (value) => (value == null || value.isEmpty) ? 'Obligatorio' : null,
+                ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   value: selectedEstado,
@@ -120,11 +129,6 @@ class _ReparacionesTabState extends State<ReparacionesTab> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
           ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              foregroundColor: Colors.black,
-              backgroundColor: Colors.greenAccent,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
             icon: const Icon(Icons.save),
             label: const Text("Guardar"),
             onPressed: () {
@@ -186,10 +190,10 @@ class _ReparacionesTabState extends State<ReparacionesTab> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       floatingActionButton: FloatingActionButton(
-        foregroundColor: Colors.black,
-        backgroundColor: Colors.teal,
         onPressed: () => _openForm(context),
         child: const Icon(Icons.add),
       ),
@@ -221,7 +225,7 @@ class _ReparacionesTabState extends State<ReparacionesTab> {
                       child: ListTile(
                         subtitle: RichText(
                           text: TextSpan(
-                            style: const TextStyle(color: Colors.black),
+                            style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
                             children: [
                               TextSpan(text: "Maquina: ${data['maquina'] ?? ''}\n"),
                               TextSpan(text: "Problema: ${data['problema'] ?? ''}\n"),
@@ -231,8 +235,8 @@ class _ReparacionesTabState extends State<ReparacionesTab> {
                                 "Estado de pago: ${data['estadoPago'] ?? 'pendiente'}\n",
                                 style: TextStyle(
                                   color: (data['estadoPago'] ?? 'pendiente') == 'pagado'
-                                      ? Colors.green
-                                      : Colors.red,
+                                      ? Colors.green.shade700
+                                      : theme.colorScheme.error,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -245,12 +249,12 @@ class _ReparacionesTabState extends State<ReparacionesTab> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             IconButton(
-                              icon: Icon(Icons.edit, color: accentColor),
+                              icon: Icon(Icons.edit, color: theme.colorScheme.primary),
                               onPressed: () => _openForm(
                                   context, docId: docs[index].id, currentData: data),
                             ),
                             IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.redAccent),
+                              icon: Icon(Icons.delete, color: theme.colorScheme.error),
                               onPressed: () => _deleteReparacion(docs[index].id),
                             ),
                           ],
@@ -266,21 +270,4 @@ class _ReparacionesTabState extends State<ReparacionesTab> {
       ),
     );
   }
-}
-
-Widget _styledTextField(TextEditingController controller, String label,
-    {TextInputType keyboardType = TextInputType.text}) {
-  return TextFormField(
-    controller: controller,
-    keyboardType: keyboardType,
-    validator: (value) => (value == null || value.isEmpty) ? 'Obligatorio' : null,
-    decoration: InputDecoration(
-      labelText: label,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.green, width: 2),
-      ),
-    ),
-  );
 }

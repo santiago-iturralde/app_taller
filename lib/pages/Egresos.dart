@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:intl/date_symbol_data_local.dart';
+// import 'package:intl/date_symbol_data_local.dart'; // No se usa en este archivo
 
 class EgresosScreen extends StatelessWidget {
   final String uid;
@@ -15,10 +15,13 @@ class EgresosScreen extends StatelessWidget {
         .collection('egresos')
         .orderBy('fecha', descending: true);
 
+    // Obtenemos el esquema de colores del tema
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Egresos"),
-        backgroundColor: Colors.teal,
+        // backgroundColor: Colors.teal, // <- ELIMINADO (usa el tema)
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: egresosRef.snapshots(),
@@ -47,11 +50,7 @@ class EgresosScreen extends StatelessWidget {
                   : '-';
 
               return Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 3,
-                margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                // shape, elevation y margin vienen del cardTheme
                 child: ListTile(
                   title: Text(egreso['descripcion'] ?? ''),
                   subtitle: Text("${egreso['categoria'] ?? ''} • $fechaStr"),
@@ -60,15 +59,16 @@ class EgresosScreen extends StatelessWidget {
                     children: [
                       Text(
                         "\$${egreso['monto'] ?? 0}",
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, color: Colors.red),
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.error), // <- MODIFICADO
                       ),
                       IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.blue),
+                        icon: Icon(Icons.edit, color: colorScheme.primary), // <- MODIFICADO
                         onPressed: () => _mostrarDialogoEditar(context, uid, doc.id, egreso),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.redAccent),
+                        icon: Icon(Icons.delete, color: colorScheme.error), // <- MODIFICADO
                         onPressed: () => _eliminarEgreso(uid, doc.id),
                       ),
                     ],
@@ -81,11 +81,16 @@ class EgresosScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _mostrarDialogoAgregar(context, uid),
-        backgroundColor: Colors.teal,
+        // backgroundColor: Colors.teal, // <- ELIMINADO (usa el tema)
         child: const Icon(Icons.add),
       ),
     );
   }
+
+  // --- MÉTODOS DE LÓGICA (SIN CAMBIOS) ---
+  // Estos métodos no necesitan cambios porque los widgets
+  // internos (TextField, ElevatedButton, etc.)
+  // adoptarán el tema automáticamente.
 
   Future<void> _eliminarEgreso(String uid, String docId) async {
     await FirebaseFirestore.instance
@@ -214,7 +219,7 @@ class EgresosScreen extends StatelessWidget {
                   'descripcion': descripcionCtrl.text,
                   'monto': monto,
                   'categoria': categoria,
-                  'fecha': DateTime.now(),
+                  'fecha': DateTime.now(), // Considera si quieres actualizar la fecha o mantener la original
                 });
                 Navigator.pop(context);
               }

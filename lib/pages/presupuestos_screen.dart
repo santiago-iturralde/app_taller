@@ -26,160 +26,171 @@ class _PresupuestosScreenState extends State<PresupuestosScreen> {
         ? List<Map<String, dynamic>>.from(currentData['items'])
         : [];
 
-    void _addItem() {
-      items.add({'descripcion': '', 'cantidad': 1, 'precio': 0.0});
-      setState(() {});
-    }
-
-    void _removeItem(int index) {
-      items.removeAt(index);
-      setState(() {});
-    }
-
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text(docId != null ? 'Editar Presupuesto' : 'Nuevo Presupuesto'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Selector de cliente
-                  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    stream: clientesCol.orderBy('nombre').snapshots(),
-                    builder: (context, snap) {
-                      if (!snap.hasData) return const CircularProgressIndicator();
-                      final clientes = snap.data!.docs;
-                      return DropdownButtonFormField<String>(
-                        value: selectedClienteId,
-                        decoration: const InputDecoration(labelText: 'Cliente'),
-                        items: clientes.map((doc) {
-                          final data = doc.data();
-                          return DropdownMenuItem(
-                            value: doc.id,
-                            child: Text(data['nombre'] ?? ''),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          setState(() {
-                            selectedClienteId = val;
-                            selectedClienteNombre = clientes
-                                .firstWhere((c) => c.id == val)
-                                .data()['nombre'];
-                          });
-                        },
-                        validator: (val) => val == null ? 'Seleccione un cliente' : null,
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  // Lista de items
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: items.length,
-                    itemBuilder: (context, index) {
-                      final item = items[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Column(
-                            children: [
-                              TextFormField(
-                                initialValue: item['descripcion'],
-                                decoration:
-                                const InputDecoration(labelText: 'Descripción'),
-                                onChanged: (val) => item['descripcion'] = val,
-                                validator: (val) =>
-                                (val == null || val.isEmpty) ? 'Obligatorio' : null,
-                              ),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextFormField(
-                                      initialValue: item['cantidad'].toString(),
-                                      decoration:
-                                      const InputDecoration(labelText: 'Cantidad'),
-                                      keyboardType: TextInputType.number,
-                                      onChanged: (val) =>
-                                      item['cantidad'] = int.tryParse(val) ?? 1,
-                                      validator: (val) => (val == null ||
-                                          int.tryParse(val) == null)
-                                          ? 'Número'
-                                          : null,
+        builder: (context, setState) {
+
+          void _addItem() {
+            setState(() {
+              items.add({'descripcion': '', 'cantidad': 1, 'precio': 0.0});
+            });
+          }
+
+          void _removeItem(int index) {
+            setState(() {
+              items.removeAt(index);
+            });
+          }
+
+          double _calculateTotal() {
+            return items.fold(
+                0.0,
+                    (prev, item) =>
+                prev +
+                    (item['cantidad'] as int) * (item['precio'] as double));
+          }
+
+          return AlertDialog(
+            title: Text(docId != null ? 'Editar Presupuesto' : 'Nuevo Presupuesto'),
+            content: SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      stream: clientesCol.orderBy('nombre').snapshots(),
+                      builder: (context, snap) {
+                        if (!snap.hasData) return const CircularProgressIndicator();
+                        final clientes = snap.data!.docs;
+                        return DropdownButtonFormField<String>(
+                          value: selectedClienteId,
+                          decoration: const InputDecoration(labelText: 'Cliente'),
+                          items: clientes.map((doc) {
+                            final data = doc.data();
+                            return DropdownMenuItem(
+                              value: doc.id,
+                              child: Text(data['nombre'] ?? ''),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            setState(() {
+                              selectedClienteId = val;
+                              selectedClienteNombre = clientes
+                                  .firstWhere((c) => c.id == val)
+                                  .data()['nombre'];
+                            });
+                          },
+                          validator: (val) => val == null ? 'Seleccione un cliente' : null,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: items.length,
+                      itemBuilder: (context, index) {
+                        final item = items[index];
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              children: [
+                                TextFormField(
+                                  initialValue: item['descripcion'],
+                                  decoration:
+                                  const InputDecoration(labelText: 'Descripción'),
+                                  onChanged: (val) => item['descripcion'] = val,
+                                  validator: (val) =>
+                                  (val == null || val.isEmpty) ? 'Obligatorio' : null,
+                                ),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextFormField(
+                                        initialValue: item['cantidad'].toString(),
+                                        decoration:
+                                        const InputDecoration(labelText: 'Cantidad'),
+                                        keyboardType: TextInputType.number,
+                                        onChanged: (val) =>
+                                        item['cantidad'] = int.tryParse(val) ?? 1,
+                                        validator: (val) => (val == null ||
+                                            int.tryParse(val) == null)
+                                            ? 'Número'
+                                            : null,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: TextFormField(
-                                      initialValue: item['precio'].toString(),
-                                      decoration: const InputDecoration(
-                                          labelText: 'Precio unitario'),
-                                      keyboardType: TextInputType.number,
-                                      onChanged: (val) =>
-                                      item['precio'] = double.tryParse(val) ?? 0.0,
-                                      validator: (val) => (val == null ||
-                                          double.tryParse(val) == null)
-                                          ? 'Número'
-                                          : null,
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: TextFormField(
+                                        initialValue: item['precio'].toString(),
+                                        decoration: const InputDecoration(
+                                            labelText: 'Precio unitario'),
+                                        keyboardType: TextInputType.number,
+                                        onChanged: (val) =>
+                                        item['precio'] = double.tryParse(val) ?? 0.0,
+                                        validator: (val) => (val == null ||
+                                            double.tryParse(val) == null)
+                                            ? 'Número'
+                                            : null,
+                                      ),
                                     ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete, color: Colors.red),
-                                    onPressed: () => setState(() => _removeItem(index)),
-                                  )
-                                ],
-                              ),
-                            ],
+                                    IconButton(
+                                      icon: Icon(Icons.delete,
+                                          color: Theme.of(context).colorScheme.error),
+                                      onPressed: () => _removeItem(index),
+                                    )
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton.icon(
-                    onPressed: _addItem,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Agregar ítem'),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Total: \$${items.fold(0.0, (prev, item) => prev + (item['cantidad'] as int) * (item['precio'] as double)).toStringAsFixed(2)}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      onPressed: _addItem,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Agregar ítem'),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Total: \$${_calculateTotal().toStringAsFixed(2)}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-            ElevatedButton(
-              onPressed: () async {
-                if (!_formKey.currentState!.validate()) return;
-                final total = items.fold(
-                    0.0, (prev, item) => prev + (item['cantidad'] as int) * (item['precio'] as double));
-                final data = {
-                  'clienteId': selectedClienteId,
-                  'clienteNombre': selectedClienteNombre ?? '-',
-                  'items': items,
-                  'total': total,
-                  'fecha': Timestamp.now(),
-                };
-                if (docId != null) {
-                  await presupuestosCol.doc(docId).update(data);
-                } else {
-                  await presupuestosCol.add(data);
-                }
-                Navigator.pop(context);
-              },
-              child: const Text('Guardar'),
-            ),
-          ],
-        ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+              ElevatedButton(
+                onPressed: () async {
+                  if (!_formKey.currentState!.validate()) return;
+                  final total = _calculateTotal();
+                  final data = {
+                    'clienteId': selectedClienteId,
+                    'clienteNombre': selectedClienteNombre ?? '-',
+                    'items': items,
+                    'total': total,
+                    'fecha': Timestamp.now(),
+                  };
+                  if (docId != null) {
+                    await presupuestosCol.doc(docId).update(data);
+                  } else {
+                    await presupuestosCol.add(data);
+                  }
+                  Navigator.pop(context);
+                },
+                child: const Text('Guardar'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -223,6 +234,8 @@ class _PresupuestosScreenState extends State<PresupuestosScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openPresupuestoForm(),
@@ -247,7 +260,7 @@ class _PresupuestosScreenState extends State<PresupuestosScreen> {
               return Card(
                 margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                 child: Padding(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(8.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -260,17 +273,17 @@ class _PresupuestosScreenState extends State<PresupuestosScreen> {
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.picture_as_pdf),
+                            icon: const Icon(Icons.picture_as_pdf, color: Colors.green),
                             tooltip: 'Generar PDF',
                             onPressed: () => _generarPDF(data),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.edit),
+                            icon: Icon(Icons.edit, color: theme.colorScheme.primary),
                             tooltip: 'Editar',
                             onPressed: () => _openPresupuestoForm(currentData: data, docId: doc.id),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.delete),
+                            icon: Icon(Icons.delete, color: theme.colorScheme.error),
                             tooltip: 'Eliminar',
                             onPressed: () => presupuestosCol.doc(doc.id).delete(),
                           ),

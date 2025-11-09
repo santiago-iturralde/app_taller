@@ -21,6 +21,9 @@ class HistorialReparacionesClienteScreen extends StatelessWidget {
         .doc(uid)
         .collection('reparaciones');
 
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: Text("Historial de $clienteNombre"),
@@ -40,7 +43,6 @@ class HistorialReparacionesClienteScreen extends StatelessWidget {
             return const Center(child: Text("No hay reparaciones registradas."));
           }
 
-          // Ordenar por fechaIngreso descendente (más recientes primero)
           docs.sort((a, b) {
             final fa = (a['fechaIngreso'] as Timestamp?)?.toDate() ?? DateTime(2000);
             final fb = (b['fechaIngreso'] as Timestamp?)?.toDate() ?? DateTime(2000);
@@ -57,10 +59,10 @@ class HistorialReparacionesClienteScreen extends StatelessWidget {
                   ? DateFormat("dd/MM/yyyy").format(fecha)
                   : "-";
 
+              final bool isPagado = (data['estadoPago'] ?? 'pendiente') == 'pagado';
+              final String estadoPago = data['estadoPago'] ?? 'pendiente';
+
               return Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 3,
-                margin: const EdgeInsets.symmetric(vertical: 6),
                 child: ListTile(
                   title: Text(
                     data['maquina'] ?? '',
@@ -68,16 +70,16 @@ class HistorialReparacionesClienteScreen extends StatelessWidget {
                   ),
                   subtitle: RichText(
                     text: TextSpan(
-                      style: const TextStyle(color: Colors.black), // color base
+                      style: theme.textTheme.bodyMedium?.copyWith(color: Colors.black87, height: 1.4),
                       children: [
                         TextSpan(text: "Problema: ${data['problema'] ?? ''}\n"),
                         TextSpan(text: "Estado de reparación: ${data['estado'] ?? ''}\n"),
                         TextSpan(
-                          text: "Estado de pago: ${data['estadoPago'] ?? 'pendiente'}\n",
+                          text: "Estado de pago: $estadoPago\n",
                           style: TextStyle(
-                            color: (data['estadoPago'] ?? 'pendiente') == 'pagado'
-                                ? Colors.green
-                                : Colors.red,
+                            color: isPagado
+                                ? Colors.green.shade700
+                                : colorScheme.error,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -86,7 +88,6 @@ class HistorialReparacionesClienteScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-
                 ),
               );
             },

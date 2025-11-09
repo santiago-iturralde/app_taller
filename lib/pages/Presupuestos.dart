@@ -7,9 +7,6 @@ import 'package:printing/printing.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
-final Color primaryColor = Colors.indigo;
-final Color accentColor = Colors.indigoAccent;
-
 class PresupuestosTab extends StatefulWidget {
   final String uid;
   const PresupuestosTab({super.key, required this.uid});
@@ -59,13 +56,25 @@ class _PresupuestosTabState extends State<PresupuestosTab> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _styledTextField(_descController, 'Descripción'),
+              TextFormField(
+                controller: _descController,
+                decoration: const InputDecoration(labelText: 'Descripción'),
+                validator: (value) => (value == null || value.isEmpty) ? 'Obligatorio' : null,
+              ),
               const SizedBox(height: 10),
-              _styledTextField(_cantidadController, 'Cantidad',
-                  keyboardType: TextInputType.number),
+              TextFormField(
+                controller: _cantidadController,
+                decoration: const InputDecoration(labelText: 'Cantidad'),
+                keyboardType: TextInputType.number,
+                validator: (value) => (value == null || value.isEmpty) ? 'Obligatorio' : null,
+              ),
               const SizedBox(height: 10),
-              _styledTextField(_precioController, 'Precio unitario',
-                  keyboardType: TextInputType.number),
+              TextFormField(
+                controller: _precioController,
+                decoration: const InputDecoration(labelText: 'Precio unitario'),
+                keyboardType: TextInputType.number,
+                validator: (value) => (value == null || value.isEmpty) ? 'Obligatorio' : null,
+              ),
             ],
           ),
           actions: [
@@ -75,12 +84,6 @@ class _PresupuestosTabState extends State<PresupuestosTab> {
             ElevatedButton.icon(
               icon: const Icon(Icons.add),
               label: const Text('Agregar'),
-              style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.black,
-                backgroundColor: Colors.greenAccent,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
               onPressed: () {
                 final cantidad = int.tryParse(_cantidadController.text) ?? 1;
                 final precio = double.tryParse(_precioController.text) ?? 0;
@@ -140,12 +143,6 @@ class _PresupuestosTabState extends State<PresupuestosTab> {
                   onPressed: _addItem,
                   icon: const Icon(Icons.add),
                   label: const Text('Agregar Ítem'),
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.black,
-                    backgroundColor: Colors.greenAccent,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
                 ),
                 const SizedBox(height: 10),
                 Column(
@@ -161,8 +158,8 @@ class _PresupuestosTabState extends State<PresupuestosTab> {
                       subtitle: Text(
                           'Cantidad: ${entry.value['cantidad']}, Precio: \$${entry.value['precio'].toStringAsFixed(2)}'),
                       trailing: IconButton(
-                        icon: const Icon(Icons.delete,
-                            color: Colors.redAccent),
+                        icon: Icon(Icons.delete,
+                            color: Theme.of(context).colorScheme.error),
                         onPressed: () {
                           setState(() {
                             items.removeAt(entry.key);
@@ -183,12 +180,6 @@ class _PresupuestosTabState extends State<PresupuestosTab> {
             ElevatedButton.icon(
               icon: const Icon(Icons.save),
               label: const Text('Guardar'),
-              style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.black,
-                backgroundColor: Colors.greenAccent,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
               onPressed: () {
                 if (!_formKey.currentState!.validate()) return;
                 double total = items.fold(
@@ -248,7 +239,7 @@ class _PresupuestosTabState extends State<PresupuestosTab> {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              // 🔹 Encabezado con degradado
+              // Encabezado
               pw.Container(
                 padding: const pw.EdgeInsets.all(12),
                 decoration: const pw.BoxDecoration(
@@ -307,13 +298,12 @@ class _PresupuestosTabState extends State<PresupuestosTab> {
     await Printing.layoutPdf(onLayout: (format) async => pdf.save());
   }
 
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       floatingActionButton: FloatingActionButton(
-        foregroundColor: Colors.black,
-        backgroundColor: Colors.teal,
         onPressed: () => _openPresupuestoForm(context),
         child: const Icon(Icons.add),
       ),
@@ -372,12 +362,12 @@ class _PresupuestosTabState extends State<PresupuestosTab> {
                             onPressed: () => _generarPDF(data),
                           ),
                           IconButton(
-                            icon: Icon(Icons.edit, color: accentColor),
+                            icon: Icon(Icons.edit, color: theme.colorScheme.primary),
                             onPressed: () => _openPresupuestoForm(
                                 context, docId: docs[index].id, currentData: data),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.redAccent),
+                            icon: Icon(Icons.delete, color: theme.colorScheme.error),
                             onPressed: () => _deletePresupuesto(docs[index].id),
                           ),
                         ],
@@ -392,21 +382,4 @@ class _PresupuestosTabState extends State<PresupuestosTab> {
       ),
     );
   }
-}
-
-Widget _styledTextField(TextEditingController controller, String label,
-    {TextInputType keyboardType = TextInputType.text}) {
-  return TextFormField(
-    controller: controller,
-    keyboardType: keyboardType,
-    validator: (value) => (value == null || value.isEmpty) ? 'Obligatorio' : null,
-    decoration: InputDecoration(
-      labelText: label,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.green, width: 2),
-      ),
-    ),
-  );
 }

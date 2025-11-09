@@ -5,9 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:excel/excel.dart';
 import 'historial_reparaciones_cliente.dart';
 
-final Color primaryColor = Colors.indigo;
-final Color accentColor = Colors.indigoAccent;
-
 class ClientesTab extends StatelessWidget {
   final String uid;
   const ClientesTab({super.key, required this.uid});
@@ -30,20 +27,24 @@ class ClientesTab extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _styledTextField(_nombreController, "Nombre"),
+              TextFormField(
+                controller: _nombreController,
+                decoration: const InputDecoration(labelText: "Nombre"),
+                validator: (value) => (value == null || value.isEmpty) ? 'Obligatorio' : null,
+              ),
               const SizedBox(height: 10),
-              _styledTextField(_telefonoController, "Teléfono", keyboardType: TextInputType.phone),
+              TextFormField(
+                controller: _telefonoController,
+                decoration: const InputDecoration(labelText: "Teléfono"),
+                keyboardType: TextInputType.phone,
+                validator: (value) => (value == null || value.isEmpty) ? 'Obligatorio' : null,
+              ),
             ],
           ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
           ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              foregroundColor: Colors.black,
-              backgroundColor: Colors.greenAccent,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
             icon: const Icon(Icons.save),
             label: const Text("Guardar"),
             onPressed: () async {
@@ -76,20 +77,23 @@ class ClientesTab extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _styledTextField(_nombreController, "Nombre"),
+              TextFormField(
+                controller: _nombreController,
+                decoration: const InputDecoration(labelText: "Nombre"),
+                validator: (value) => (value == null || value.isEmpty) ? 'Obligatorio' : null,
+              ),
               const SizedBox(height: 10),
-              _styledTextField(_telefonoController, "Teléfono"),
+              TextFormField(
+                controller: _telefonoController,
+                decoration: const InputDecoration(labelText: "Teléfono"),
+                validator: (value) => (value == null || value.isEmpty) ? 'Obligatorio' : null,
+              ),
             ],
           ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar")),
           ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              foregroundColor: Colors.black,
-              backgroundColor: Colors.greenAccent,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
             icon: const Icon(Icons.save),
             label: const Text("Guardar"),
             onPressed: () async {
@@ -110,17 +114,15 @@ class ClientesTab extends StatelessWidget {
     await col.doc(docId).delete();
   }
 
-
-
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Clientes"),
       ),
       floatingActionButton: FloatingActionButton(
-        foregroundColor: Colors.black,
-        backgroundColor: Colors.teal,
         onPressed: () => _openForm(context),
         child: const Icon(Icons.add),
       ),
@@ -141,9 +143,6 @@ class ClientesTab extends StatelessWidget {
               final fechaStr = fecha != null ? DateFormat("dd/MM/yyyy").format(fecha) : "-";
 
               return Card(
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                elevation: 3,
-                margin: const EdgeInsets.symmetric(vertical: 8),
                 child: ListTile(
                   title: Text(
                     data['nombre'] ?? 'Sin nombre',
@@ -151,21 +150,20 @@ class ClientesTab extends StatelessWidget {
                   ),
                   subtitle: Text(
                     "${data['telefono'] ?? ''}\nRegistrado: $fechaStr",
-                    style: const TextStyle(color: Colors.black54),
                   ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: Icon(Icons.edit, color: accentColor),
+                        icon: Icon(Icons.edit, color: colorScheme.primary),
                         onPressed: () => _editClient(context, docs[index].id, data),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.redAccent),
+                        icon: Icon(Icons.delete, color: colorScheme.error),
                         onPressed: () => _deleteClient(docs[index].id),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.history, color: Colors.blueAccent),
+                        icon: Icon(Icons.history, color: colorScheme.secondary),
                         onPressed: () {
                           Navigator.push(
                             context,
@@ -189,21 +187,4 @@ class ClientesTab extends StatelessWidget {
       ),
     );
   }
-}
-
-Widget _styledTextField(TextEditingController controller, String label,
-    {TextInputType keyboardType = TextInputType.text}) {
-  return TextFormField(
-    controller: controller,
-    keyboardType: keyboardType,
-    validator: (value) => (value == null || value.isEmpty) ? 'Obligatorio' : null,
-    decoration: InputDecoration(
-      labelText: label,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.green, width: 2),
-      ),
-    ),
-  );
 }

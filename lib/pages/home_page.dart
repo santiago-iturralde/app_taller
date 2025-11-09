@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'Clientes.dart';
+import 'Clientes.dart'; // Asegúrate que esta ruta es correcta
 import 'Reparaciones.dart';
 import 'Presupuestos.dart';
 import 'Egresos.dart';
@@ -34,56 +34,50 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser!;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        backgroundColor: Colors.teal,
-        elevation: 3,
-        title: const Text(
-          'Taller de Reparaciones',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-            color: Colors.white,
-          ),
-        ),
+        title: const Text('Taller de Reparaciones'),
         actions: [
           IconButton(
             tooltip: 'Exportar Todo a Excel',
             onPressed: () async {
               try {
                 await exportarTodoExcel(user.uid);
+                if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Exportación completada')),
                 );
               } catch (e) {
+                if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Error al exportar: $e')),
                 );
               }
             },
-            icon: const Icon(Icons.download, color: Colors.white),
+            icon: const Icon(Icons.download),
           ),
           IconButton(
             tooltip: 'Cerrar sesión',
             onPressed: () async => FirebaseAuth.instance.signOut(),
-            icon: const Icon(Icons.logout, color: Colors.white),
+            icon: const Icon(Icons.logout),
           ),
         ],
         bottom: TabBar(
           controller: _tabController,
           indicator: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            color: Colors.white.withOpacity(0.2),
+            color: colorScheme.onPrimary.withOpacity(0.2),
           ),
           indicatorWeight: 3,
           labelStyle: const TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.bold,
           ),
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
+          labelColor: colorScheme.onPrimary,
+          unselectedLabelColor: colorScheme.onPrimary.withOpacity(0.7),
           tabs: const [
             Tab(icon: Icon(Icons.people), text: 'Clientes'),
             Tab(icon: Icon(Icons.build), text: 'Reparaciones'),
@@ -91,17 +85,15 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           ],
         ),
       ),
-
-      // Drawer lateral
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Colors.teal),
+            DrawerHeader(
+              decoration: BoxDecoration(color: colorScheme.primary),
               child: Text(
                 'Menú',
-                style: TextStyle(color: Colors.white, fontSize: 22),
+                style: TextStyle(color: colorScheme.onPrimary, fontSize: 22),
               ),
             ),
             ListTile(
@@ -125,8 +117,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               },
             ),
             ListTile(
-              leading: Icon(Icons.build),
-              title: Text('Perfil del Taller'),
+              leading: const Icon(Icons.store),
+              title: const Text('Perfil del Taller'),
               onTap: () {
                 Navigator.push(
                   context,
@@ -134,11 +126,9 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 );
               },
             ),
-
           ],
         ),
       ),
-
       body: TabBarView(
         controller: _tabController,
         children: [

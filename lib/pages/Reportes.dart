@@ -34,7 +34,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
     final inicioMes = DateTime(_mesSeleccionado.year, _mesSeleccionado.month, 1);
     final finMes = DateTime(_mesSeleccionado.year, _mesSeleccionado.month + 1, 0);
 
-    // INGRESOS (reparaciones pagadas en el mes)
+    // INGRESOS
     final reparacionesSnap = await FirebaseFirestore.instance
         .collection('users')
         .doc(widget.uid)
@@ -53,7 +53,7 @@ class _ReportesScreenState extends State<ReportesScreen> {
       }
     }
 
-    // EGRESOS (egresos del mes)
+    // EGRESOS
     final egresosSnap = await FirebaseFirestore.instance
         .collection('users')
         .doc(widget.uid)
@@ -96,7 +96,6 @@ class _ReportesScreenState extends State<ReportesScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Reportes"),
-        backgroundColor: Colors.teal,
       ),
       body: _cargando
           ? const Center(child: CircularProgressIndicator())
