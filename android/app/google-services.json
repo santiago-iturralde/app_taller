@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "935233337914",
+    "project_id": "taller-reparaciones-8cf11",
+    "storage_bucket": "taller-reparaciones-8cf11.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:935233337914:android:d7d3de6599c00ac23d5303",
+        "android_client_info": {
+          "package_name": "com.example.taller_reparaciones"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALOhT_2Cb4-8chwmQqjIpIeMZT_WYQMro"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,39 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "taller-reparaciones-8cf11",
+          "appId": "1:935233337914:android:d7d3de6599c00ac23d5303",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "taller-reparaciones-8cf11",
+          "configurations": {
+            "android": "1:935233337914:android:d7d3de6599c00ac23d5303",
+            "ios": "1:935233337914:ios:70aa982c4af991793d5303",
+            "macos": "1:935233337914:ios:70aa982c4af991793d5303",
+            "web": "1:935233337914:web:fd3d17f607dffa363d5303",
+            "windows": "1:935233337914:web:c610f471230c14f23d5303"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
