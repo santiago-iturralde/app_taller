@@ -8,6 +8,7 @@ import 'Egresos.dart';
 import 'Reportes.dart';
 import 'export_excel.dart';
 import 'PerfilTaller.dart';
+import 'package:package_info_plus/package_info_plus.dart'; // <--- Este import es correcto
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -91,10 +92,41 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           children: [
             DrawerHeader(
               decoration: BoxDecoration(color: colorScheme.primary),
-              child: Text(
-                'Menú',
-                style: TextStyle(color: colorScheme.onPrimary, fontSize: 22),
+
+              // --- INICIO DE LA MODIFICACIÓN ---
+              // Cambiamos el child por una Columna para que entren 2 textos
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween, // Para alinear
+                children: [
+                  // 1. Tu texto original
+                  Text(
+                    'Menú',
+                    style: TextStyle(color: colorScheme.onPrimary, fontSize: 22),
+                  ),
+
+                  // 2. El FutureBuilder que obtiene la versión
+                  FutureBuilder<PackageInfo>(
+                    future: PackageInfo.fromPlatform(),
+                    builder: (context, snapshot) {
+                      String versionInfo = "Cargando..."; // Texto mientras carga
+                      if (snapshot.hasData) {
+                        // Cuando tiene los datos, muestra la versión
+                        versionInfo = "v${snapshot.data!.version}+${snapshot.data!.buildNumber}";
+                      }
+
+                      return Text(
+                        versionInfo,
+                        style: TextStyle(
+                          color: colorScheme.onPrimary.withOpacity(0.8), // Un poco más tenue
+                          fontSize: 14,
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
+              // --- FIN DE LA MODIFICACIÓN ---
             ),
             ListTile(
               leading: const Icon(Icons.money_off),
