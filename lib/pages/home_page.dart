@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'Clientes.dart'; // Asegúrate que esta ruta es correcta
+import 'Clientes.dart';
 import 'Reparaciones.dart';
 import 'Presupuestos.dart';
 import 'Egresos.dart';
@@ -9,6 +9,8 @@ import 'Reportes.dart';
 import 'export_excel.dart';
 import 'PerfilTaller.dart';
 import 'package:package_info_plus/package_info_plus.dart'; // <--- Este import es correcto
+import 'Recibos.dart';
+
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -23,7 +25,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);  //aca aumento la cantidad de pestañas
   }
 
   @override
@@ -86,7 +88,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           ],
         ),
       ),
-      drawer: Drawer(
+      drawer: Drawer( //ACA ARRANCA EL MENU DESPLEGABLE
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
@@ -155,6 +157,20 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => PerfilTallerScreen(uid: user.uid)),
+                );
+              },
+            ),
+            // --- OPCIÓN EN EL MENÚ: RECIBOS ---
+            ListTile(
+              leading: const Icon(Icons.receipt_long),
+              title: const Text("Recibos (Talonarios)"),
+              onTap: () {
+                // Cierra el menú primero
+                Navigator.pop(context);
+                // Navega a la pantalla de Recibos
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => RecibosTab(uid: user.uid)),
                 );
               },
             ),
