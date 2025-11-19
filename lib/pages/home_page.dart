@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+// Asegúrate de que estas rutas sean correctas
 import 'Clientes.dart';
 import 'Reparaciones.dart';
 import 'Presupuestos.dart';
@@ -8,9 +10,8 @@ import 'Egresos.dart';
 import 'Reportes.dart';
 import 'export_excel.dart';
 import 'PerfilTaller.dart';
-import 'package:package_info_plus/package_info_plus.dart'; // <--- Este import es correcto
 import 'Recibos.dart';
-
+import 'planes_screen.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -22,10 +23,71 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
+  // Variables para controlar el plan
+  bool _isPremium = false;
+  bool _isLoadingPremium = true;
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);  //aca aumento la cantidad de pestañas
+    _tabController = TabController(length: 3, vsync: this);
+    _checkPremiumStatus();
+  }
+
+  /// Consulta a Firebase el estado del plan (SOLO LECTURA)
+  Future<void> _checkPremiumStatus() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+
+      if (doc.exists && mounted) {
+        setState(() {
+          // Si el campo existe y es true, es Premium.
+          // Si no existe o es false, es Free.
+          // NO modificamos la base de datos aquí.
+          _isPremium = doc.data()?['isPremium'] ?? false;
+          _isLoadingPremium = false;
+        });
+      }
+    } catch (e) {
+      print("Error al verificar premium: $e");
+      if (mounted) setState(() => _isLoadingPremium = false);
+    }
+  }
+
+  /// Muestra el cartel de bloqueo
+  void _mostrarBloqueoPremium(BuildContext context, String funcion) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.workspace_premium, size: 50, color: Colors.amber),
+        title: Text("Función Premium: $funcion"),
+        content: const Text(
+          "Esta funcionalidad es exclusiva para usuarios del Plan PRO.\n\n"
+              "Actualiza tu cuenta para generar Recibos profesionales, ver Estadísticas avanzadas y más.",
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cerrar"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber,
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanesScreen()));
+            },
+            child: const Text("Ver Planes"),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -88,39 +150,52 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           ],
         ),
       ),
-      drawer: Drawer( //ACA ARRANCA EL MENU DESPLEGABLE
+
+      // --- MENÚ LATERAL ---
+      drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
               decoration: BoxDecoration(color: colorScheme.primary),
-
-              // --- INICIO DE LA MODIFICACIÓN ---
-              // Cambiamos el child por una Columna para que entren 2 textos
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween, // Para alinear
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // 1. Tu texto original
-                  Text(
-                    'Menú',
-                    style: TextStyle(color: colorScheme.onPrimary, fontSize: 22),
+                  // Fila con Título y Badge (PRO/FREE)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Menú',
+                        style: TextStyle(color: colorScheme.onPrimary, fontSize: 22),
+                      ),
+                      if (!_isLoadingPremium)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: _isPremium ? Colors.amber : Colors.grey[400],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            _isPremium ? "PRO" : "FREE",
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black),
+                          ),
+                        ),
+                    ],
                   ),
-
-                  // 2. El FutureBuilder que obtiene la versión
+                  // Versión de la app
                   FutureBuilder<PackageInfo>(
                     future: PackageInfo.fromPlatform(),
                     builder: (context, snapshot) {
-                      String versionInfo = "Cargando..."; // Texto mientras carga
+                      String versionInfo = "Cargando...";
                       if (snapshot.hasData) {
-                        // Cuando tiene los datos, muestra la versión
                         versionInfo = "v${snapshot.data!.version}+${snapshot.data!.buildNumber}";
                       }
-
                       return Text(
                         versionInfo,
                         style: TextStyle(
-                          color: colorScheme.onPrimary.withOpacity(0.8), // Un poco más tenue
+                          color: colorScheme.onPrimary.withOpacity(0.8),
                           fontSize: 14,
                         ),
                       );
@@ -128,49 +203,101 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   ),
                 ],
               ),
-              // --- FIN DE LA MODIFICACIÓN ---
             ),
+
+            // --- BOTÓN OBTENER PREMIUM (Solo visible si es FREE) ---
+            if (!_isPremium && !_isLoadingPremium)
+              Container(
+                margin: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.amber),
+                ),
+                child: ListTile(
+                  leading: const Icon(Icons.star, color: Colors.orange),
+                  title: const Text(
+                    "Obtener PREMIUM",
+                    style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
+                  ),
+                  subtitle: const Text("Desbloquea recibos y reportes"),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const PlanesScreen()),
+                    );
+                  },
+                ),
+              ),
+
+            // --- RECIBOS (BLOQUEADO) ---
+            ListTile(
+              leading: Icon(Icons.receipt_long, color: _isPremium ? null : Colors.grey),
+              title: Row(
+                children: [
+                  const Text("Recibos (Talonarios)"),
+                  if (!_isPremium) ...[
+                    const SizedBox(width: 10),
+                    const Icon(Icons.lock, size: 16, color: Colors.grey),
+                  ]
+                ],
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                if (_isPremium) {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => RecibosTab(uid: user.uid)));
+                } else {
+                  _mostrarBloqueoPremium(context, "Talonarios de Recibos");
+                }
+              },
+            ),
+
+            const Divider(),
+
+            // --- EGRESOS (LIBRE) ---
             ListTile(
               leading: const Icon(Icons.money_off),
               title: const Text("Egresos"),
               onTap: () {
+                Navigator.pop(context);
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => EgresosScreen(uid: user.uid)),
                 );
               },
             ),
+
+            // --- REPORTES (BLOQUEADO) ---
             ListTile(
-              leading: const Icon(Icons.bar_chart),
-              title: const Text("Reportes"),
+              leading: Icon(Icons.bar_chart, color: _isPremium ? null : Colors.grey),
+              title: Row(
+                children: [
+                  const Text("Reportes"),
+                  if (!_isPremium) ...[
+                    const SizedBox(width: 10),
+                    const Icon(Icons.lock, size: 16, color: Colors.grey),
+                  ]
+                ],
+              ),
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => ReportesScreen(uid: user.uid)),
-                );
+                Navigator.pop(context);
+                if (_isPremium) {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => ReportesScreen(uid: user.uid)));
+                } else {
+                  _mostrarBloqueoPremium(context, "Estadísticas y Reportes");
+                }
               },
             ),
+
             ListTile(
               leading: const Icon(Icons.store),
               title: const Text('Perfil del Taller'),
               onTap: () {
+                Navigator.pop(context);
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => PerfilTallerScreen(uid: user.uid)),
-                );
-              },
-            ),
-            // --- OPCIÓN EN EL MENÚ: RECIBOS ---
-            ListTile(
-              leading: const Icon(Icons.receipt_long),
-              title: const Text("Recibos (Talonarios)"),
-              onTap: () {
-                // Cierra el menú primero
-                Navigator.pop(context);
-                // Navega a la pantalla de Recibos
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => RecibosTab(uid: user.uid)),
                 );
               },
             ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -11,20 +12,19 @@ class AuthPage extends StatefulWidget {
 class _AuthPageState extends State<AuthPage> {
   final _emailController = TextEditingController();
   final _passController = TextEditingController();
-  bool _isLogin = true; // true = login, false = registro
-  bool _isLoading = false; // Para feedback interactivo
+  bool _isLogin = true;
+  bool _isLoading = false;
 
   Future<void> _submit() async {
-    if (_isLoading) return; // Evitar doble submit
+    if (_isLoading) return;
 
     final email = _emailController.text.trim();
     final pass = _passController.text.trim();
 
-    // Validar que no estén vacíos
     if (email.isEmpty || pass.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Por favor, complete todos los campos."),
+          content: const Text("Por favor, complete todos los campos."),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -35,18 +35,58 @@ class _AuthPageState extends State<AuthPage> {
 
     try {
       if (_isLogin) {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
+        // --- LOGICA DE LOGIN (MODIFICADA) ---
+        // 1. Iniciar sesión
+        UserCredential cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: email,
           password: pass,
         );
+
+        // 2. VERIFICACIÓN AUTOMÁTICA (Auto-fix para usuarios viejos)
+        if (cred.user != null) {
+          final userDoc = FirebaseFirestore.instance.collection('users').doc(cred.user!.uid);
+          final snapshot = await userDoc.get();
+
+          if (snapshot.exists) {
+            // Si el usuario existe, revisamos si le falta el campo 'isPremium'
+            final data = snapshot.data();
+            if (data != null && !data.containsKey('isPremium')) {
+              // ¡Le falta! Se lo agregamos automáticamente como FREE
+              await userDoc.update({'isPremium': false});
+            }
+          } else {
+            // Caso raro: Existe en Auth pero no en la Base de Datos -> Lo creamos
+            await userDoc.set({
+              'email': email,
+              'isPremium': false,
+              'fechaRegistro': FieldValue.serverTimestamp(),
+              'nombreTaller': '',
+              'telefono': '',
+              'direccion': '',
+            });
+          }
+        }
+
       } else {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        // --- LOGICA DE REGISTRO (NUEVOS) ---
+        UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: email,
           password: pass,
         );
+
+        if (userCredential.user != null) {
+          await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
+            'email': email,
+            'isPremium': false, // Nacen Free
+            'fechaRegistro': FieldValue.serverTimestamp(),
+            'nombreTaller': '',
+            'telefono': '',
+            'direccion': '',
+          });
+        }
       }
 
-      // El StreamBuilder en main.dart se encarga de la navegación.
+      // La navegación ocurre automáticamente por el StreamBuilder en main.dart
 
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -65,7 +105,6 @@ class _AuthPageState extends State<AuthPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Obtenemos el tema y el esquema de colores
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
