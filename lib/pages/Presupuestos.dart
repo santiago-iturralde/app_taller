@@ -35,8 +35,10 @@ class _PresupuestosTabState extends State<PresupuestosTab> {
   void _openPresupuestoForm(BuildContext context,
       {String? docId, Map<String, dynamic>? currentData}) {
     final _formKey = GlobalKey<FormState>();
-    String? selectedClientId =
-    currentData != null ? currentData['clienteId'] : null;
+
+    // Guardamos el ID original que viene del presupuesto
+    String? selectedClientId = currentData != null ? currentData['clienteId'] : null;
+
     List<Map<String, dynamic>> items = currentData != null
         ? List<Map<String, dynamic>>.from(currentData['items'])
         : [];
@@ -121,11 +123,24 @@ class _PresupuestosTabState extends State<PresupuestosTab> {
                   stream: clientesCol.orderBy('nombre').snapshots(),
                   builder: (context, snap) {
                     if (!snap.hasData) return const CircularProgressIndicator();
-                    final clientes = snap.data!.docs;
+
+                    final clientesDocs = snap.data!.docs;
+
+                    // --- CORRECCIÓN DE SEGURIDAD PARA DROPDOWN ---
+                    // Verificamos si el ID guardado (selectedClientId) existe en la lista actual de clientes
+                    final bool existeCliente = clientesDocs.any((doc) => doc.id == selectedClientId);
+
+                    // Si el ID guardado NO existe en la lista (fue borrado),
+                    // forzamos el valor a null para que el Dropdown no explote.
+                    if (selectedClientId != null && !existeCliente) {
+                      selectedClientId = null;
+                    }
+                    // ---------------------------------------------
+
                     return DropdownButtonFormField<String>(
                       value: selectedClientId,
                       decoration: const InputDecoration(labelText: 'Cliente'),
-                      items: clientes.map((doc) {
+                      items: clientesDocs.map((doc) {
                         final data = doc.data();
                         return DropdownMenuItem(
                           value: doc.id,
@@ -151,12 +166,10 @@ class _PresupuestosTabState extends State<PresupuestosTab> {
                       .entries
                       .map((entry) => Card(
                     margin: const EdgeInsets.symmetric(vertical: 4),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
                     child: ListTile(
                       title: Text(entry.value['desc']),
                       subtitle: Text(
-                          'Cantidad: ${entry.value['cantidad']}, Precio: \$${entry.value['precio'].toStringAsFixed(2)}'),
+                          'Cant: ${entry.value['cantidad']} x \$${entry.value['precio']}'),
                       trailing: IconButton(
                         icon: Icon(Icons.delete,
                             color: Theme.of(context).colorScheme.error),
@@ -226,8 +239,17 @@ class _PresupuestosTabState extends State<PresupuestosTab> {
       } catch (_) {}
     }
 
-    final clienteSnap = await clientesCol.doc(presupuesto['clienteId']).get();
-    final clienteNombre = clienteSnap.data()?['nombre'] ?? '-';
+    // Lógica segura para obtener el nombre del cliente para el PDF
+    String clienteNombre = '-';
+    try {
+      if (presupuesto['clienteId'] != null) {
+        final clienteSnap = await clientesCol.doc(presupuesto['clienteId']).get();
+        if (clienteSnap.exists) {
+          clienteNombre = clienteSnap.data()?['nombre'] ?? '-';
+        }
+      }
+    } catch (_) {}
+
     final fecha = (presupuesto['fecha'] as Timestamp).toDate();
     final fechaStr = DateFormat('dd/MM/yyyy').format(fecha);
 
@@ -282,13 +304,24 @@ class _PresupuestosTabState extends State<PresupuestosTab> {
               pw.SizedBox(height: 10),
               pw.Column(
                 children: (presupuesto['items'] as List<dynamic>).map((item) {
-                  return pw.Text(
-                      '${item['desc']} - Cant: ${item['cantidad']}, \$${item['precio'].toStringAsFixed(2)}');
+                  return pw.Padding(
+                    padding: const pw.EdgeInsets.symmetric(vertical: 2),
+                    child: pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                        pw.Expanded(child: pw.Text('${item['desc']}')),
+                        pw.Text('${item['cantidad']} x \$${item['precio']}'),
+                      ],
+                    ),
+                  );
                 }).toList(),
               ),
-              pw.SizedBox(height: 10),
-              pw.Text('Total: \$${(presupuesto['total'] as num).toStringAsFixed(2)}',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+              pw.Divider(),
+              pw.Align(
+                alignment: pw.Alignment.centerRight,
+                child: pw.Text('Total: \$${(presupuesto['total'] as num).toStringAsFixed(2)}',
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16)),
+              ),
             ],
           );
         },
@@ -328,47 +361,113 @@ class _PresupuestosTabState extends State<PresupuestosTab> {
               return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                 future: clientesCol.doc(data['clienteId']).get(),
                 builder: (context, clienteSnap) {
-                  final clienteNombre =
-                  clienteSnap.hasData ? clienteSnap.data!['nombre'] ?? '-' : '-';
+
+                  // Solución "A prueba de balas" para la vista de la lista
+                  String clienteNombre = "Cargando...";
+
+                  if (clienteSnap.connectionState == ConnectionState.done) {
+                    if (clienteSnap.hasError) {
+                      clienteNombre = "Error al cargar cliente";
+                    } else if (clienteSnap.hasData && clienteSnap.data!.exists) {
+                      clienteNombre = clienteSnap.data!.data()?['nombre'] ?? 'Sin nombre';
+                    } else {
+                      clienteNombre = 'Cliente eliminado';
+                    }
+                  } else {
+                    clienteNombre = 'Buscando cliente...';
+                  }
+
                   return Card(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15)),
                     elevation: 3,
-                    margin: const EdgeInsets.symmetric(vertical: 6),
-                    child: ListTile(
-                      title: Text('Cliente: $clienteNombre',
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Column(
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Fecha: $fechaStr'),
-                          ...List.generate(
-                            (data['items'] as List<dynamic>).length,
-                                (i) {
-                              final item = (data['items'] as List<dynamic>)[i];
-                              return Text(
-                                  '${item['desc']} - Cant: ${item['cantidad']}, \$${item['precio'].toStringAsFixed(2)}');
-                            },
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  clienteNombre,
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: (clienteNombre == 'Cliente eliminado') ? Colors.red : null
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                fechaStr,
+                                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                              ),
+                            ],
                           ),
-                          Text('Total: \$${(data['total'] as num).toStringAsFixed(2)}',
-                              style: const TextStyle(fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.picture_as_pdf, color: Colors.green),
-                            onPressed: () => _generarPDF(data),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.edit, color: theme.colorScheme.primary),
-                            onPressed: () => _openPresupuestoForm(
-                                context, docId: docs[index].id, currentData: data),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.delete, color: theme.colorScheme.error),
-                            onPressed: () => _deletePresupuesto(docs[index].id),
+                          const Divider(),
+
+                          const Text("Ítems:", style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey)),
+                          const SizedBox(height: 4),
+                          ...List.generate((data['items'] as List<dynamic>).length, (i) {
+                            final item = (data['items'] as List<dynamic>)[i];
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 2.0),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text("• ", style: TextStyle(color: Colors.grey)),
+                                  Expanded(
+                                    child: Text("${item['desc']}", style: const TextStyle(fontSize: 14)),
+                                  ),
+                                  Text(
+                                    "${item['cantidad']} x \$${item['precio']}",
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+
+                          const Divider(),
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text("TOTAL", style: TextStyle(fontSize: 10, color: Colors.grey)),
+                                  Text(
+                                    "\$${(data['total'] as num).toStringAsFixed(2)}",
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 20,
+                                      color: theme.colorScheme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Row(
+                                children: [
+                                  IconButton(
+                                    tooltip: "Generar PDF",
+                                    icon: const Icon(Icons.picture_as_pdf, color: Colors.green),
+                                    onPressed: () => _generarPDF(data),
+                                  ),
+                                  IconButton(
+                                    tooltip: "Editar",
+                                    icon: Icon(Icons.edit, color: theme.colorScheme.primary),
+                                    onPressed: () => _openPresupuestoForm(
+                                        context, docId: docs[index].id, currentData: data),
+                                  ),
+                                  IconButton(
+                                    tooltip: "Eliminar",
+                                    icon: Icon(Icons.delete, color: theme.colorScheme.error),
+                                    onPressed: () => _deletePresupuesto(docs[index].id),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ],
                       ),
