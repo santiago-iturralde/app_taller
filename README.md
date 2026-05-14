@@ -39,8 +39,8 @@ Muchos talleres mecánicos aún dependen de procesos manuales, planillas de pape
 ### Instalación y Configuración
 1. **Clonar el repositorio**
    ```bash
-   git clone 
-   cd taller-mecanico
+   git clone https://github.com/santiago-iturralde/app_taller.git
+   cd taller_reparaciones
    ```
 
 2. **Instalar dependencias**
@@ -70,10 +70,13 @@ El proyecto utiliza una estructura de documentos optimizada para lectura rápida
 ## 📸 Screenshots
 
 ### Dashboard Principal
-<img width="1200" height="675" alt="Dashboard Taller" src="https://github.com/user-attachments/assets/tu-id-imagen-1" />
+<img width="1917" height="1054" alt="paginaInicial" src="https://github.com/user-attachments/assets/53a77987-bcd4-47bc-8b51-6b601b9fb9c3" />
 
-### Vista de Órdenes y Detalles
-<img width="500" height="300" alt="Detalle Reparacion" src="https://github.com/user-attachments/assets/tu-id-imagen-2" /> <img width="500" height="300" alt="Inventario" src="https://github.com/user-attachments/assets/tu-id-imagen-3" />
+
+### Vista de finanza y agente ia 
+<img width="1917" height="1079" alt="Agenteiataller" src="https://github.com/user-attachments/assets/dd20798e-f094-457e-8ede-54fa7273ebce" />
+<img width="1918" height="1078" alt="PresupuestosTaller" src="https://github.com/user-attachments/assets/1419e09f-5c4b-4e25-b0d2-d805cf023b83" />
+
 
 ---
 
