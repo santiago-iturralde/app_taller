@@ -5,10 +5,10 @@ const app = express();
 app.use(express.json());
 
 let latestQR = null;
-let status = 'Iniciando servidor y navegador en Render...';
+let status = 'Iniciando Chromium en la nube...';
 
 process.on('unhandledRejection', (reason) => {
-    console.error('⚠️ Advertencia (Unhandled Rejection):', reason);
+    console.error('⚠️ Advertencia:', reason);
 });
 
 const client = new Client({
@@ -16,6 +16,7 @@ const client = new Client({
     puppeteer: {
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
         headless: true,
+        timeout: 120000, // 2 minutos de tiempo de espera para CPUs limitadas
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -23,6 +24,7 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
+            '--single-process', // Reduce drásticamente el consumo de RAM en Docker
             '--disable-gpu'
         ]
     }
@@ -34,26 +36,14 @@ client.on('qr', (qr) => {
     console.log('📱 Nuevo QR generado. Ver en: /qr');
 });
 
-client.on('loading_screen', (percent, message) => {
-    status = `Cargando WhatsApp Web: ${percent}% (${message || ''})`;
-    console.log(`⏳ ${status}`);
-});
-
-client.on('authenticated', () => {
-    status = 'Autenticado correctamente. Finalizando sincronización...';
-    console.log('🔑 Sesión autenticada.');
-});
-
 client.on('ready', () => {
     latestQR = null;
     status = 'Conectado';
     console.log('✅ ¡WhatsApp Conectado y listo en la nube!');
 });
 
-client.on('disconnected', (reason) => {
-    latestQR = null;
-    status = 'Desconectado';
-    console.log('❌ Dispositivo desconectado:', reason);
+client.on('authenticated', () => {
+    status = 'Autenticado correctamente. Cargando datos...';
 });
 
 app.get('/qr', (req, res) => {
@@ -62,7 +52,7 @@ app.get('/qr', (req, res) => {
             <html>
                 <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;background-color:#e8f5e9;">
                     <h1 style="color:#2e7d32;">✅ ¡WhatsApp Conectado Exitosamente!</h1>
-                    <p style="color:#444;font-size:18px;">El sistema ya está listo para enviar mensajes automáticamente desde la app del taller.</p>
+                    <p style="color:#444;font-size:18px;">El sistema ya está listo para enviar mensajes desde la app.</p>
                 </body>
             </html>
         `);
@@ -86,7 +76,6 @@ app.get('/qr', (req, res) => {
             <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;background-color:#f4f4f9;">
                 <h2 style="color:#333;">Escaneá este QR con el celular de tu papá:</h2>
                 <img src="${qrImageUrl}" alt="QR Code" style="border:12px solid white;box-shadow:0 4px 15px rgba(0,0,0,0.15);border-radius:12px;"/>
-                <p style="color:#666;margin-top:15px;">Si el código expira, recargá la página.</p>
             </body>
         </html>
     `);
@@ -123,13 +112,11 @@ app.post('/enviar', async (req, res) => {
     }
 });
 
-status = 'Inicializando Chromium y cliente de WhatsApp...';
-client.initialize().catch(err => {
-    console.error('❌ Error Client:', err);
-    status = 'Error al iniciar WhatsApp: ' + err.message;
-});
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
+    client.initialize().catch(err => {
+        console.error('❌ Error Client:', err);
+        status = 'Error al iniciar Chromium. Reiniciando...';
+    });
 });
