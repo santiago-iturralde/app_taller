@@ -2,12 +2,12 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const app = express();
 
+const app = express();
 app.use(express.json());
 
 let latestQR = null;
-let status = 'Iniciando cliente de WhatsApp en Render...';
+let status = 'Iniciando cliente de WhatsApp...';
 
 process.on('unhandledRejection', (reason) => {
     console.error('⚠️ Advertencia:', reason);
@@ -15,8 +15,6 @@ process.on('unhandledRejection', (reason) => {
 
 const client = new Client({
     authStrategy: new LocalAuth(),
-    takeoverOnConflict: true,
-    takeoverTimeoutMs: 0,
     puppeteer: {
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
         headless: true,
@@ -26,36 +24,35 @@ const client = new Client({
             '--disable-dev-shm-usage',
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
-            '--no-zygote',
             '--disable-gpu',
             '--disable-extensions',
-            '--disable-software-rasterizer',
-            '--mute-audio'
+            '--disable-component-update',
+            '--js-flags=--max-old-space-size=256'
         ]
     }
 });
 
 client.on('qr', (qr) => {
     latestQR = qr;
-    status = 'QR listo para escanear';
-    console.log('📱 Nuevo QR generado. Ver en: /qr');
+    status = 'QR listo. Escaneá desde el celular.';
+    console.log('📱 Nuevo QR generado.');
 });
 
 client.on('authenticated', () => {
     latestQR = null;
-    status = 'Autenticado. Vinculando con el teléfono...';
-    console.log('🔑 Autenticado correctamente.');
+    status = 'Autenticado. Vinculando dispositivo...';
+    console.log('🔑 Autenticación exitosa.');
 });
 
 client.on('ready', () => {
     latestQR = null;
     status = 'Conectado';
-    console.log('✅ ¡WhatsApp Conectado y listo en la nube!');
+    console.log('✅ WhatsApp Conectado y listo para enviar mensajes.');
 });
 
 client.on('auth_failure', (msg) => {
-    status = 'Error de autenticación. Intentá reiniciar desde /reset';
-    console.error('❌ Error de autenticación:', msg);
+    status = 'Error de autenticación. Entrá a /reset para reintentar.';
+    console.error('❌ Error de auth:', msg);
 });
 
 client.on('disconnected', (reason) => {
@@ -64,14 +61,13 @@ client.on('disconnected', (reason) => {
     console.log('❌ Dispositivo desconectado:', reason);
 });
 
-// Vista principal para escanear el QR
 app.get('/qr', (req, res) => {
     if (status === 'Conectado') {
         return res.send(`
             <html>
                 <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;background-color:#e8f5e9;">
                     <h1 style="color:#2e7d32;">✅ ¡WhatsApp Conectado Exitosamente!</h1>
-                    <p style="color:#444;font-size:18px;">El servidor en la nube ya está listo para enviar mensajes automáticamente.</p>
+                    <p style="color:#444;font-size:18px;">El servidor en la nube ya está activo y listo para enviar notificaciones.</p>
                 </body>
             </html>
         `);
@@ -83,7 +79,7 @@ app.get('/qr', (req, res) => {
                 <head><meta http-equiv="refresh" content="5"></head>
                 <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;background-color:#fff3e0;">
                     <h2 style="color:#e65100;">⏳ ${status}</h2>
-                    <p style="color:#666;">La página se actualizará automáticamente cada 5 segundos...</p>
+                    <p style="color:#666;">Aguardá unos segundos, la página se recarga automáticamente...</p>
                 </body>
             </html>
         `);
@@ -95,23 +91,22 @@ app.get('/qr', (req, res) => {
             <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;background-color:#f4f4f9;">
                 <h2 style="color:#333;">Escaneá este QR con el celular de tu papá:</h2>
                 <img src="${qrImageUrl}" alt="QR Code" style="border:12px solid white;box-shadow:0 4px 15px rgba(0,0,0,0.15);border-radius:12px;"/>
-                <p style="color:#888;margin-top:15px;">Si se traba o querés reiniciar el intento, entrá a <a href="/reset">/reset</a></p>
+                <p style="margin-top:20px;"><a href="/reset" style="color:#d32f2f;font-weight:bold;">Hacé clic acá si querés limpiar la sesión y reiniciar</a></p>
             </body>
         </html>
     `);
 });
 
-// Ruta de rescate para borrar sesiones incompletas y reiniciar
 app.get('/reset', (req, res) => {
     try {
         const authPath = path.join(__dirname, '.wwebjs_auth');
         if (fs.existsSync(authPath)) {
             fs.rmSync(authPath, { recursive: true, force: true });
         }
-        res.send('<h2>🔄 Sesión limpiada. Reiniciando servidor... Volvé a entrar a <a href="/qr">/qr</a> en 30 segundos.</h2>');
-        setTimeout(() => process.exit(0), 1000); // Render reiniciará el contenedor automáticamente
-    } catch (error) {
-        res.send('Error al reiniciar: ' + error.toString());
+        res.send('<h2>🔄 Archivos de sesión eliminados. Reiniciando el servidor... Volvé a abrir <a href="/qr">/qr</a> en 30 segundos.</h2>');
+        setTimeout(() => process.exit(0), 1000);
+    } catch (err) {
+        res.send('Error al reiniciar: ' + err.toString());
     }
 });
 
