@@ -7,16 +7,12 @@ const path = require('path');
 const app = express();
 app.use(express.json());
 
-app.use(express.json());
-
-// Permitir peticiones desde la app Flutter Web (CORS)
+// Permisos CORS para Flutter Web
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
+    if (req.method === 'OPTIONS') return res.sendStatus(200);
     next();
 });
 
@@ -36,7 +32,6 @@ function clearAuthFolders() {
     }
 }
 
-// Configuración ultra-liviana de Chromium para no sobrepasar los 512MB de Render
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
@@ -47,18 +42,15 @@ const client = new Client({
             '--disable-dev-shm-usage',
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
-            '--no-zygote',
-            '--single-process', // CRÍTICO: reduce el consumo de RAM de 700MB a ~150MB
             '--disable-gpu',
-            '--disable-extensions',
-            '--disable-component-update',
-            '--js-flags="--max-old-space-size=128"'
+            '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+            '--js-flags="--max-old-space-size=256"'
         ]
     }
 });
 
 client.on('qr', (qr) => {
-    console.log('📌 ¡Código QR generado!');
+    console.log('📌 Código QR generado.');
     qrCodeData = qr;
     clientStatus = 'QR_READY';
 });
@@ -69,7 +61,7 @@ client.on('authenticated', () => {
 });
 
 client.on('ready', () => {
-    console.log('✅ ¡WhatsApp Web está completamente listo y conectado!');
+    console.log('✅ ¡WhatsApp Web listo!');
     clientStatus = 'READY';
     qrCodeData = null;
 });
@@ -86,7 +78,6 @@ client.on('disconnected', (reason) => {
     clearAuthFolders();
 });
 
-// Endpoint visual del QR con auto-recarga
 app.get('/qr', async (req, res) => {
     if (clientStatus === 'READY') {
         return res.send(`
@@ -101,7 +92,7 @@ app.get('/qr', async (req, res) => {
         return res.send(`
             <div style="text-align:center;font-family:sans-serif;margin-top:50px;">
                 <h2 style="color:#e65100;">⏳ Estado: ${clientStatus}</h2>
-                <p style="color:#666;">Abriendo navegador Chromium... La página se actualizará sola.</p>
+                <p style="color:#666;">Cargando navegador... La página se actualizará sola.</p>
                 <script>setTimeout(() => location.reload(), 4000);</script>
             </div>
         `);
@@ -114,7 +105,7 @@ app.get('/qr', async (req, res) => {
                 <h2>Escaneá el código QR con tu celular</h2>
                 <img src="${qrImage}" style="width:280px;height:280px;border:8px solid white;box-shadow:0 4px 10px rgba(0,0,0,0.2);border-radius:10px;"/>
                 <p>Estado: <b>${clientStatus}</b></p>
-                <script>setTimeout(() => location.reload(), 6000);</script>
+                <script>setTimeout(() => location.reload(), 5000);</script>
             </div>
         `);
     } catch (err) {
@@ -154,7 +145,7 @@ app.post('/enviar', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`🚀 Servidor Express iniciado en el puerto ${PORT}`);
-    clientStatus = 'Iniciando navegador en modo ultra-liviano...';
+    clientStatus = 'Iniciando navegador...';
     
     client.initialize().catch(err => {
         console.error('❌ Error al inicializar cliente de WhatsApp:', err);
