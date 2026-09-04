@@ -1,22 +1,42 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
 const express = require('express');
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const qrcode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
 
 const app = express();
-app.use(express.json());
+const PORT = process.env.PORT || 3000;
 
-let latestQR = null;
-let status = 'Iniciando cliente de WhatsApp...';
+let qrCodeData = null;
+let clientStatus = 'DISCONNECTED';
 
-process.on('unhandledRejection', (reason) => {
-    console.error('⚠️ Advertencia:', reason);
-});
+// Función para limpiar archivos de sesión corruptos si el intento anterior falló
+function clearAuthFolders() {
+    const authFolder = path.join(__dirname, '.wwebjs_auth');
+    const cacheFolder = path.join(__dirname, '.wwebjs_cache');
+    try {
+        if (fs.existsSync(authFolder)) {
+            fs.rmSync(authFolder, { recursive: true, force: true });
+            console.log('🧹 Limpiada la carpeta .wwebjs_auth corrupta');
+        }
+        if (fs.existsSync(cacheFolder)) {
+            fs.rmSync(cacheFolder, { recursive: true, force: true });
+            console.log('🧹 Limpiada la carpeta .wwebjs_cache corrupta');
+        }
+    } catch (err) {
+        console.error('Error al limpiar carpetas:', err);
+    }
+}
 
+// Configuración de WhatsApp Client optimizada para Render
 const client = new Client({
     authStrategy: new LocalAuth(),
+    webVersionCache: {
+        type: 'remote',
+        remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1014588042-alpha.html',
+    },
     puppeteer: {
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
         headless: true,
         args: [
             '--no-sandbox',
@@ -24,127 +44,76 @@ const client = new Client({
             '--disable-dev-shm-usage',
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
+            '--no-zygote',
             '--disable-gpu',
-            '--disable-extensions',
-            '--disable-component-update',
-            '--js-flags=--max-old-space-size=256'
+            '--single-process', // Ahorro crítico de RAM en Render
+            // Simula un navegador Chrome real en Windows para evitar que WhatsApp bloquee la vinculación
+            '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
         ]
     }
 });
 
 client.on('qr', (qr) => {
-    latestQR = qr;
-    status = 'QR listo. Escaneá desde el celular.';
-    console.log('📱 Nuevo QR generado.');
+    console.log('📌 Nuevo código QR generado.');
+    qrCodeData = qr;
+    clientStatus = 'QR_READY';
 });
 
 client.on('authenticated', () => {
-    latestQR = null;
-    status = 'Autenticado. Vinculando dispositivo...';
-    console.log('🔑 Autenticación exitosa.');
+    console.log('🔐 Dispositivo autenticado con éxito.');
+    clientStatus = 'AUTHENTICATED';
 });
 
 client.on('ready', () => {
-    latestQR = null;
-    status = 'Conectado';
-    console.log('✅ WhatsApp Conectado y listo para enviar mensajes.');
+    console.log('✅ ¡WhatsApp Web está completamente listo y conectado!');
+    clientStatus = 'READY';
+    qrCodeData = null;
 });
 
 client.on('auth_failure', (msg) => {
-    status = 'Error de autenticación. Entrá a /reset para reintentar.';
-    console.error('❌ Error de auth:', msg);
+    console.error('❌ Fallo de autenticación:', msg);
+    clientStatus = 'AUTH_FAILURE';
+    clearAuthFolders(); // Limpia archivos si falló
 });
 
 client.on('disconnected', (reason) => {
-    latestQR = null;
-    status = 'Desconectado';
-    console.log('❌ Dispositivo desconectado:', reason);
+    console.log('⚠️ Cliente desconectado:', reason);
+    clientStatus = 'DISCONNECTED';
+    clearAuthFolders();
 });
 
-app.get('/qr', (req, res) => {
-    if (status === 'Conectado') {
-        return res.send(`
-            <html>
-                <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;background-color:#e8f5e9;">
-                    <h1 style="color:#2e7d32;">✅ ¡WhatsApp Conectado Exitosamente!</h1>
-                    <p style="color:#444;font-size:18px;">El servidor en la nube ya está activo y listo para enviar notificaciones.</p>
-                </body>
-            </html>
-        `);
+client.initialize();
+
+// Ruta para visualizar el QR desde la web
+app.get('/qr', async (req, res) => {
+    if (clientStatus === 'READY') {
+        return res.send('<h2 style="font-family: sans-serif; color: green; text-align: center; margin-top: 50px;">✅ WhatsApp ya está vinculado y funcionando correctamente.</h2>');
     }
-
-    if (!latestQR) {
-        return res.send(`
-            <html>
-                <head><meta http-equiv="refresh" content="5"></head>
-                <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;background-color:#fff3e0;">
-                    <h2 style="color:#e65100;">⏳ ${status}</h2>
-                    <p style="color:#666;">Aguardá unos segundos, la página se recarga automáticamente...</p>
-                </body>
-            </html>
-        `);
+    if (!qrCodeData) {
+        return res.send('<h2 style="font-family: sans-serif; text-align: center; margin-top: 50px;">⏳ Generando código QR... Actualiza la página en 5 segundos.</h2>');
     }
-
-    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(latestQR)}`;
-    res.send(`
-        <html>
-            <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;background-color:#f4f4f9;">
-                <h2 style="color:#333;">Escaneá este QR con el celular de tu papá:</h2>
-                <img src="${qrImageUrl}" alt="QR Code" style="border:12px solid white;box-shadow:0 4px 15px rgba(0,0,0,0.15);border-radius:12px;"/>
-                <p style="margin-top:20px;"><a href="/reset" style="color:#d32f2f;font-weight:bold;">Hacé clic acá si querés limpiar la sesión y reiniciar</a></p>
-            </body>
-        </html>
-    `);
-});
-
-app.get('/reset', (req, res) => {
     try {
-        const authPath = path.join(__dirname, '.wwebjs_auth');
-        if (fs.existsSync(authPath)) {
-            fs.rmSync(authPath, { recursive: true, force: true });
-        }
-        res.send('<h2>🔄 Archivos de sesión eliminados. Reiniciando el servidor... Volvé a abrir <a href="/qr">/qr</a> en 30 segundos.</h2>');
-        setTimeout(() => process.exit(0), 1000);
+        const qrImage = await qrcode.toDataURL(qrCodeData);
+        res.send(`
+            <div style="text-align: center; font-family: sans-serif; margin-top: 40px;">
+                <h1>Escanea el código QR con WhatsApp</h1>
+                <img src="${qrImage}" style="width: 280px; height: 280px; border: 1px solid #ccc; padding: 10px; border-radius: 8px;"/>
+                <p>Estado del servidor: <b>${clientStatus}</b></p>
+                <p style="color: #666; font-size: 14px;">La página se actualiza automáticamente cada 8 segundos.</p>
+                <script>
+                    setTimeout(() => location.reload(), 8000);
+                </script>
+            </div>
+        `);
     } catch (err) {
-        res.send('Error al reiniciar: ' + err.toString());
+        res.status(500).send('Error generando el código QR');
     }
 });
 
-app.get('/ping', (req, res) => {
-    res.send('Servidor Activo 🚀');
+app.get('/', (req, res) => {
+    res.send(`Servidor activo. Estado de WhatsApp: ${clientStatus}`);
 });
 
-app.post('/enviar', async (req, res) => {
-    try {
-        const { cliente, numero, maquina, precio } = req.body;
-
-        if (!numero) {
-            return res.status(400).json({ error: 'Falta el número de teléfono' });
-        }
-
-        let numLimpio = String(numero).replace(/\D/g, '');
-        if (numLimpio.length === 10 && !numLimpio.startsWith('54')) {
-            numLimpio = '549' + numLimpio;
-        }
-        const chatId = `${numLimpio}@c.us`;
-
-        const mensaje = `Hola ${cliente || ''}, ¡tu ${maquina || 'máquina'} ya está reparada y probada! El costo final es de $${precio || 0}. Te esperamos en el taller!`;
-
-        console.log(`📩 Enviando a ${chatId}...`);
-        await client.sendMessage(chatId, mensaje);
-        console.log('🚀 Enviado correctamente');
-
-        res.json({ status: 'OK', mensaje: 'Mensaje enviado' });
-    } catch (error) {
-        console.error('❌ Error al enviar:', error);
-        res.status(500).json({ error: error.toString() });
-    }
-});
-
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
-    client.initialize().catch(err => {
-        console.error('❌ Error Client:', err);
-    });
+    console.log(`Servidor iniciado en el puerto ${PORT}`);
 });
