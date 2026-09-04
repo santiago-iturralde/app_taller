@@ -65,7 +65,7 @@ class _ReparacionesTabState extends State<ReparacionesTab> {
       }
 
       // 2. Disparamo la petición HTTP POST a n8n
-      final url = Uri.parse('http://127.0.0.1:5678/webhook/alerta-listo');      final response = await http.post(
+      final url = Uri.parse('https://puente-whatsapp-taller.onrender.com/enviar');      final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
