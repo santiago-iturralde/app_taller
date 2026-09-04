@@ -13,6 +13,6 @@
   "dependencies": {
     "express": "^4.19.2",
     "qrcode": "^1.5.3",
-    "whatsapp-web.js": "github:pedroslopez/whatsapp-web.js#main"
+    "whatsapp-web.js": "^1.26.0"
   }
 }
