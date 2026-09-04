@@ -43,29 +43,29 @@ dependencies:
   google_fonts: ^6.2.1
   excel: ^2.1.0
   path_provider: ^2.0.14
-  permission_handler: ^10.4.0
+  permission_handler: ^12.0.1
   collection: ^1.17.0
   image_picker: ^1.1.1
   image_picker_for_web: ^3.0.1
   firebase_analytics: ^12.0.4
   package_info_plus: ^9.0.0
+  http: ^1.6.0
+  webview_flutter: ^4.13.1
+  webview_flutter_web: ^0.2.3+4
+  universal_html: ^2.3.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_lints: ^5.0.0
   flutter_launcher_icons: ^0.14.4
 
-flutter_icons:
+flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/imagen.png"
-
-  # The "flutter_lints" package below contains a set of recommended lints to
-  # encourage good coding practices. The lint set provided by the package is
-  # activated in the `analysis_options.yaml` file located at the root of your
-  # package. See that file for information about deactivating specific lint
-  # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+  adaptive_icon_background: "#FFFFFF" # Cambiá este #FFFFFF por el color hexadecimal del fondo de tu logo
+  adaptive_icon_foreground: "assets/imagen.png"
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

@@ -1,85 +1,128 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-// Definimos los colores base de una vez por todas.
-final _seedColor = Colors.blue;
-
 class AppTheme {
-  static ThemeData lightTheme = ThemeData(
-    useMaterial3: true,
-    // 1. Creamos el ColorScheme a partir de la semilla (seed)
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: _seedColor,
-      brightness: Brightness.light,
-      // Puedes sobrescribir colores específicos si quieres
-      // primary: _seedColor,
-      // secondary: Colors.amber,
-    ),
+  // 1. Definimos una paleta de colores Premium estática para usar en toda la app
+  static const Color primaryBlue = Color(0xFF1E3A8A); // Azul oscuro corporativo y elegante
+  static const Color accentGold = Color(0xFFF59E0B); // Dorado para botones PRO y alertas
+  static const Color bgLight = Color(0xFFF8FAFC); // Fondo gris perlado muy moderno
+  static const Color textDark = Color(0xFF1E293B); // Texto oscuro suave (mejor que negro puro)
+  static const Color cardColor = Colors.white;
 
-    // 2. Usamos la tipografía de Google Fonts
-    textTheme: GoogleFonts.poppinsTextTheme(),
+  static ThemeData get lightTheme {
+    return ThemeData(
+      useMaterial3: true,
+      scaffoldBackgroundColor: bgLight,
 
-    // 3. Definimos CÓMO se verán los componentes en TODA la app
-    appBarTheme: AppBarTheme(
-      backgroundColor: _seedColor,
-      foregroundColor: Colors.white, // Color del texto y los iconos en la AppBar
-      elevation: 2,
-      centerTitle: true,
-      titleTextStyle: GoogleFonts.poppins(
-        fontSize: 20,
-        fontWeight: FontWeight.w600,
+      // Creamos el ColorScheme base
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: primaryBlue,
+        primary: primaryBlue,
+        secondary: accentGold,
+        surface: cardColor,
       ),
-    ),
 
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: Colors.grey.shade100, // Un gris muy sutil
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(12)),
-        borderSide: BorderSide.none,
+      // Tipografía Poppins para toda la app (¡Gran elección tuya!)
+      textTheme: GoogleFonts.poppinsTextTheme().apply(
+        bodyColor: textDark,
+        displayColor: textDark,
       ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(12)),
-        borderSide: BorderSide(color: Colors.grey.shade300),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(12)),
-        borderSide: BorderSide(color: _seedColor, width: 2),
-      ),
-      labelStyle: TextStyle(color: Colors.black54),
-      contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-    ),
 
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: _seedColor,
+      // AppBar moderna y limpia
+      appBarTheme: AppBarTheme(
+        backgroundColor: primaryBlue,
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
+        elevation: 0, // Las apps modernas usan elevación 0 y separadores sutiles
+        centerTitle: true,
+        titleTextStyle: GoogleFonts.poppins(
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
         ),
-        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        textStyle: GoogleFonts.poppins(fontWeight: FontWeight.bold),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-    ),
 
-    textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(
-        foregroundColor: _seedColor,
+      // Inputs (Cajas de texto) estilo SaaS
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        labelStyle: const TextStyle(color: Colors.black54),
+        hintStyle: const TextStyle(color: Colors.black38),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: primaryBlue, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 1),
+        ),
       ),
-    ),
 
-    cardTheme: CardThemeData(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(16)),
+      // Botones elevados prominentes y modernos
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryBlue,
+          foregroundColor: Colors.white,
+          elevation: 4,
+          shadowColor: primaryBlue.withOpacity(0.4),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          textStyle: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+        ),
       ),
-      elevation: 3,
-      margin: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-    ),
 
-    floatingActionButtonTheme: FloatingActionButtonThemeData(
-      backgroundColor: _seedColor,
-      foregroundColor: Colors.white,
-      shape: CircleBorder(),
-    ),
-  );
+      // Botones de texto simples
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: primaryBlue,
+          textStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
+      ),
+
+      /// Tarjetas flotantes y suaves
+      cardTheme: CardThemeData( // <-- ACÁ ESTÁ EL CAMBIO: agregamos "Data"
+        color: cardColor, // Asegurate de tener definida la variable cardColor arriba
+        elevation: 8,
+        shadowColor: Colors.black.withOpacity(0.06), // Sombra muy sutil
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      ),
+
+      // Botón flotante estilo squircle (cuadrado redondeado)
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: primaryBlue,
+        foregroundColor: Colors.white,
+        elevation: 6,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
+
+      // Estilo de los modales (BottomSheets) para que salgan perfectos de fábrica
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        elevation: 10,
+      ),
+    );
+  }
 }

@@ -1,0 +1,512 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* --- NAVBAR CORPORATIVA (EFECTO CRISTAL) --- */
+.navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 80px;
+    background: rgba(26, 26, 26, 0.85); /* Fondo oscuro transparente */
+    backdrop-filter: blur(10px); /* El efecto cristal mágico */
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 50px;
+    z-index: 2000;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+}
+
+.nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    color: white;
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.logo-mini {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 2px solid #ffcc00;
+    object-fit: cover;
+}
+
+.nav-links {
+    display: flex;
+    list-style: none;
+    gap: 30px;
+}
+
+.nav-links a {
+    color: white;
+    text-decoration: none;
+    font-size: 1.1rem;
+    font-weight: 500;
+    transition: color 0.3s;
+}
+
+.nav-links a:hover {
+    color: #ffcc00;
+}
+
+.btn-nav {
+    background-color: transparent;
+    color: #ffcc00;
+    border: 2px solid #ffcc00;
+    padding: 10px 25px;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+}
+
+.btn-nav:hover {
+    background-color: #ffcc00;
+    color: #1a1a1a;
+}
+
+/* Ocultar menú en celulares para no tapar toda la pantalla */
+@media (max-width: 768px) {
+    .nav-links, .btn-nav { display: none; }
+    .navbar { padding: 0 20px; justify-content: center; }
+}
+
+
+/* --- CINTA DE MARCAS INFINITA --- */
+.franja-marcas {
+    background-color: #ffcc00; /* Fondo amarillo industrial */
+    color: #1a1a1a;
+    padding: 15px 0;
+    overflow: hidden; /* Oculta lo que se sale de la pantalla */
+    white-space: nowrap;
+    width: 100%;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+}
+
+.ticker-movimiento {
+    display: inline-block;
+    font-size: 1.5rem;
+    font-weight: 900; /* Letra bien gruesa */
+    letter-spacing: 2px;
+    animation: moverMarcas 25s linear infinite; /* Animación continua */
+}
+
+.ticker-movimiento span {
+    margin: 0 20px;
+}
+
+@keyframes moverMarcas {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); } /* Se mueve la mitad y como está duplicado, no se nota el corte */
+}
+
+/* Estilos generales del cuerpo */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #ffffff;
+    color: #333333;
+}
+
+/* Estilos de la portada */
+.portada {
+    /* El degradado negro semitransparente + la imagen de fondo */
+    background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('fondo.jpg');
+    background-size: cover; /* Hace que la imagen ocupe todo el espacio sin deformarse */
+    background-position: center; /* Centra la imagen */
+    color: white;
+    padding: 150px 20px; /* Le di un poquito más de espacio arriba y abajo */
+    text-align: center;
+}
+
+/* Estilos para el logo de la portada */
+.logo-portada {
+    width: 150px; /* Ancho del logo */
+    height: 150px; /* Alto del logo */
+    object-fit: cover; /* Evita que la imagen se estire o deforme */
+    border-radius: 50%; /* Esto es el truco mágico que lo hace un círculo perfecto */
+    border: 4px solid #ffcc00; /* Un borde amarillo para que haga juego con el taller */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5); /* Sombra para despegarlo del fondo */
+    margin-bottom: 25px; /* Espacio entre el logo y el título principal */
+    animation: aparecerDesdeAbajo 1.2s ease-out;
+}
+
+.contenido-portada h1 {
+    font-size: 2.8rem;
+    margin-bottom: 20px;
+    animation: aparecerDesdeAbajo 1.2s ease-out;
+}
+
+.contenido-portada p {
+    font-size: 1.2rem;
+    color: #cccccc; /* Un gris más claro  */
+    margin-bottom: 40px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    animation: aparecerDesdeAbajo 1.2s ease-out;
+}
+
+@keyframes aparecerDesdeAbajo {
+    0% {
+        opacity: 0; /* Totalmente transparente */
+        transform: translateY(50px); /* Arranca 50 píxeles más abajo */
+    }
+    100% {
+        opacity: 1; /* Totalmente visible */
+        transform: translateY(0); /* Termina en su posición original */
+    }
+}
+
+/* Estilos del botón de WhatsApp actualizado */
+.btn-whatsapp {
+    background-color: #25D366; /* El verde oficial de WhatsApp */
+    color: white; /* Ahora el texto es blanco para que resalte */
+    padding: 15px 35px;
+    text-decoration: none;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border-radius: 8px;
+    
+    /* Estas 3 líneas alinean el loguito con el texto */
+    display: inline-flex; 
+    align-items: center;
+    gap: 10px; /* Espacio entre el logo y las letras */
+    
+    transition: background-color 0.3s ease;
+}
+
+/* Efecto cuando pasás el mouse por el botón */
+.btn-whatsapp:hover {
+    background-color: #128C7E; /* Un verde un poco más oscuro, tipo WhatsApp Business */
+}
+
+
+/* --- SECCIÓN SERVICIOS --- */
+.servicios {
+    padding: 80px 20px;
+    background-color: #f9f9f9; /* Un gris muuuy clarito para separar de la portada */
+    text-align: center;
+}
+
+.servicios h2 {
+    font-size: 2.5rem;
+    margin-bottom: 50px;
+    color: #1a1a1a;
+}
+
+/* El contenedor que acomoda las tarjetas */
+.grid-servicios {
+    display: flex;
+    flex-wrap: wrap; /* Si la pantalla es chica (celular), las apila una abajo de otra */
+    justify-content: center;
+    gap: 30px;
+    max-width: 1000px;
+    margin: 0 auto; /* Centra el bloque en la pantalla */
+}
+
+/* El diseño individual de cada tarjeta */
+.tarjeta {
+    background-color: white;
+    padding: 40px 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05); /* Sombra suave que le da volumen */
+    width: 300px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Efecto al pasar el mouse por la tarjeta */
+.tarjeta:hover {
+    transform: translateY(-10px); /* Hace que la tarjeta "flote" hacia arriba */
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1); /* Hace la sombra un poco más fuerte */
+}
+
+/* Los íconos adentro de las tarjetas */
+.tarjeta i {
+    font-size: 3rem;
+    color: #ffcc00; /* Amarillo industrial para mantener la onda del taller */
+    margin-bottom: 20px;
+}
+
+.tarjeta h3 {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+    color: #333333;
+}
+
+.tarjeta p {
+    color: #666666;
+    line-height: 1.6; /* Separa un poco los renglones para que se lea mejor */
+}
+
+
+/* --- SECCIÓN CONTACTO --- */
+.contacto {
+    padding: 80px 20px;
+    background-color: #1a1a1a; /* Fondo oscuro para dar cierre a la página */
+    color: white;
+    text-align: center;
+}
+
+.contacto h2 {
+    font-size: 2.5rem;
+    margin-bottom: 40px;
+    color: #ffcc00; /* Amarillo industrial */
+}
+
+.contacto-contenedor {
+    max-width: 600px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.info-contacto {
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    background-color: #262626;
+    padding: 30px;
+    border-radius: 10px;
+}
+
+.info-contacto p {
+    font-size: 1.1rem;
+    color: #cccccc;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.info-contacto i {
+    color: #ffcc00;
+    font-size: 1.3rem;
+    width: 25px;
+    text-align: center;
+}
+
+.aviso-contacto {
+    background-color: #333333;
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 4px solid #25D366; /* Detalle verde WhatsApp */
+    color: #ffffff;
+    font-size: 1.1rem;
+}
+
+
+/* Estilos para el contenedor del Google Maps */
+.mapa-contenedor {
+    width: 100%;
+    border-radius: 10px;
+    overflow: hidden; /* Esto obliga al mapa a respetar los bordes redondeados */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3); /* Sombra oscura para despegarlo del fondo */
+}
+
+.mapa-contenedor iframe {
+    display: block; /* Elimina un pequeño espacio en blanco que los navegadores le agregan abajo a los mapas */
+}
+
+
+/* --- PIE DE PÁGINA --- */
+.pie-pagina {
+    background-color: #0d0d0d; /* Negro casi puro */
+    color: #666666; /* Texto gris oscuro */
+    text-align: center;
+    padding: 25px 20px;
+    font-size: 0.9rem;
+}
+
+.pie-pagina p {
+    margin-bottom: 5px;
+}
+
+
+/* --- BOTÓN FLOTANTE WHATSAPP --- */
+.btn-flotante {
+    position: fixed;
+    bottom: 30px; /* Separación desde abajo */
+    right: 30px; /* Separación desde la derecha */
+    background-color: #25D366; /* Verde de WhatsApp */
+    color: white;
+    width: 60px; /* Ancho del círculo */
+    height: 60px; /* Alto del círculo */
+    border-radius: 50%; /* Lo hace redondo */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 35px; /* Tamaño del loguito */
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3); /* Sombra para que flote visualmente */
+    z-index: 1000; /* Asegura que siempre esté por encima de todo el resto de la página */
+    text-decoration: none;
+    transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+/* Efecto al pasar el mouse por encima */
+.btn-flotante:hover {
+    background-color: #128C7E;
+    transform: scale(1.1); /* Se agranda un 10% para dar un efecto interactivo */
+}
+
+/* Ajuste para que en celulares no quede tan pegado al borde */
+@media (max-width: 600px) {
+    .btn-flotante {
+        bottom: 20px;
+        right: 20px;
+        width: 50px;
+        height: 50px;
+        font-size: 30px;
+    }
+}
+
+/* --- ANIMACIONES AL SCROLLEAR --- */
+.revelar {
+    opacity: 0;
+    transform: translateY(80px); /* Lo empuja 80px para abajo */
+    transition: all 0.8s ease-out; /* La transición dura casi un segundo */
+}
+
+/* Esta clase se la va a agregar el JavaScript cuando el elemento aparezca en pantalla */
+.revelar.activo {
+    opacity: 1;
+    transform: translateY(0); /* Lo devuelve a su lugar original */
+}
+
+/* --- SECCIÓN ESTADÍSTICAS --- */
+.estadisticas {
+    background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
+    padding: 80px 20px;
+    color: white;
+    border-top: 5px solid #ffcc00; /* Línea industrial amarilla arriba */
+}
+
+.contenedor-stats {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap; /* Para que se adapte en celulares */
+    gap: 40px;
+    text-align: center;
+}
+
+.stat-caja {
+    flex: 1;
+    min-width: 200px; /* En celulares se van a poner de a dos o uno por fila */
+}
+
+.stat-caja i {
+    font-size: 3.5rem;
+    color: #ffcc00;
+    margin-bottom: 15px;
+    text-shadow: 0 0 15px rgba(255, 204, 0, 0.2); /* Efecto de luz suave */
+}
+
+.stat-caja h3 {
+    font-size: 4rem;
+    font-weight: 900;
+    margin: 10px 0;
+    letter-spacing: 2px;
+}
+
+/* Le agregamos un "+" al lado del número para dar la idea de "más de..." */
+.stat-caja h3::after {
+    content: "+";
+    color: #ffcc00;
+}
+
+.stat-caja p {
+    font-size: 1.1rem;
+    color: #cccccc;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: bold;
+}
+
+/* --- SECCIÓN CÓMO TRABAJAMOS (PROCESO) --- */
+.proceso {
+    background-color: #ffffff; /* Fondo blanco para contrastar con las estadísticas oscuras */
+    padding: 100px 20px;
+    text-align: center;
+}
+
+.proceso h2 {
+    font-size: 2.8rem;
+    color: #1a1a1a;
+    margin-bottom: 60px;
+}
+
+.contenedor-pasos {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.paso {
+    flex: 1; /* Ocupan el mismo ancho */
+    padding: 0 20px;
+    z-index: 2; /* Para que quede por encima de la línea conectora */
+}
+
+/* El diseño de los círculos con los números */
+.numero-paso {
+    width: 80px;
+    height: 80px;
+    background-color: #ffcc00;
+    color: #1a1a1a;
+    font-size: 2.5rem;
+    font-weight: 900;
+    border-radius: 50%; /* Círculo perfecto */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto 20px auto;
+    box-shadow: 0 0 20px rgba(255, 204, 0, 0.4); /* Resplandor amarillo */
+    border: 5px solid white; /* Borde para "cortar" la línea de fondo */
+}
+
+.paso h3 {
+    font-size: 1.5rem;
+    color: #333333;
+    margin-bottom: 15px;
+}
+
+.paso p {
+    color: #666666;
+    line-height: 1.6;
+    font-size: 1.1rem;
+}
+
+/* La línea gris que conecta los pasos en computadoras */
+.linea-proceso {
+    flex: 0.2; /* Ancho de la línea */
+    height: 4px;
+    background-color: #e0e0e0;
+    margin-top: 40px; /* Alineado para que pase justo por el medio de los círculos */
+    border-radius: 2px;
+}
+
+/* Magia para que se adapte perfecto a celulares */
+@media (max-width: 768px) {
+    .contenedor-pasos {
+        flex-direction: column; /* Los apila verticalmente */
+        gap: 50px; /* Espacio entre pasos */
+    }
+    .linea-proceso {
+        display: none; /* Ocultamos la línea horizontal en celulares porque se rompe el diseño */
+    }
+}

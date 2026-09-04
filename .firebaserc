@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "taller-reparaciones-8cf11"
-  }
+  },
+  "targets": {
+    "taller-reparaciones-8cf11": {
+      "hosting": {
+        "pagina": [
+          "taller-reparaciones-8cf11"
+        ],
+        "app": [
+          "taller-app-admin"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

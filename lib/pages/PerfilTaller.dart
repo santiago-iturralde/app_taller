@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:html' as html;
+import 'package:universal_html/html.dart' as html;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../theme.dart'; // Importamos tu tema premium
 
 class PerfilTallerScreen extends StatefulWidget {
   final String uid;
@@ -25,6 +26,21 @@ class _PerfilTallerScreenState extends State<PerfilTallerScreen> {
   void initState() {
     super.initState();
     _cargarDatos();
+
+    // Agregamos listeners para que la tarjeta superior se actualice en vivo mientras escribís
+    _nombreController.addListener(() => setState(() {}));
+    _direccionController.addListener(() => setState(() {}));
+    _telefonoController.addListener(() => setState(() {}));
+    _emailController.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _nombreController.dispose();
+    _direccionController.dispose();
+    _telefonoController.dispose();
+    _emailController.dispose();
+    super.dispose();
   }
 
   Future<void> _cargarDatos() async {
@@ -106,14 +122,17 @@ class _PerfilTallerScreenState extends State<PerfilTallerScreen> {
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Datos del taller guardados')),
+        const SnackBar(
+          content: Text('✅ Datos del taller guardados con éxito'),
+          backgroundColor: Colors.green,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content: Text('Error al guardar datos: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error),
+            backgroundColor: Colors.redAccent),
       );
     } finally {
       if (mounted) {
@@ -122,52 +141,73 @@ class _PerfilTallerScreenState extends State<PerfilTallerScreen> {
     }
   }
 
-  Widget _buildHeader(Uint8List? logoBytes, ColorScheme colorScheme) {
+  Widget _buildHeader(Uint8List? logoBytes) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.symmetric(vertical: 20),
+      padding: const EdgeInsets.all(24),
+      margin: const EdgeInsets.only(bottom: 30),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            colorScheme.primary.withOpacity(0.8),
-            colorScheme.primary,
+            AppTheme.primaryBlue,
+            AppTheme.primaryBlue.withOpacity(0.7),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black26,
-            blurRadius: 8,
-            offset: Offset(0, 4),
+            color: AppTheme.primaryBlue.withOpacity(0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Row(
         children: [
+          // Área del Logo
           GestureDetector(
             onTap: _subirLogo,
-            child: Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: colorScheme.onPrimary.withOpacity(0.8),
-                borderRadius: BorderRadius.circular(12),
-                image: logoBytes != null
-                    ? DecorationImage(
-                  image: MemoryImage(logoBytes),
-                  fit: BoxFit.cover,
+            child: Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                Container(
+                  width: 90,
+                  height: 90,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 4))
+                    ],
+                    image: logoBytes != null
+                        ? DecorationImage(
+                      image: MemoryImage(logoBytes),
+                      fit: BoxFit.cover,
+                    )
+                        : null,
+                  ),
+                  child: logoBytes == null
+                      ? const Icon(Icons.add_a_photo_outlined, size: 32, color: Colors.grey)
+                      : null,
+                ),
+                // Iconito flotante de edición
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 4)
+                      ]
+                  ),
+                  child: const Icon(Icons.camera_alt, size: 14, color: AppTheme.primaryBlue),
                 )
-                    : null,
-              ),
-              child: logoBytes == null
-                  ? Icon(Icons.add_a_photo,
-                  size: 40, color: colorScheme.primary)
-                  : null,
+              ],
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 20),
+          // Área de Información
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -176,36 +216,43 @@ class _PerfilTallerScreenState extends State<PerfilTallerScreen> {
                   _nombreController.text.isNotEmpty
                       ? _nombreController.text
                       : 'Nombre del Taller',
-                  style: TextStyle(
-                    fontSize: 20,
+                  style: const TextStyle(
+                    fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: colorScheme.onPrimary,
+                    color: Colors.white,
+                    height: 1.2,
                   ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  _telefonoController.text.isNotEmpty
-                      ? _telefonoController.text
-                      : 'Teléfono',
-                  style:
-                  TextStyle(color: colorScheme.onPrimary.withOpacity(0.8)),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _direccionController.text.isNotEmpty
-                      ? _direccionController.text
-                      : 'Dirección',
-                  style:
-                  TextStyle(color: colorScheme.onPrimary.withOpacity(0.8)),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _emailController.text.isNotEmpty
-                      ? _emailController.text
-                      : 'Correo electrónico',
-                  style:
-                  TextStyle(color: colorScheme.onPrimary.withOpacity(0.8)),
-                ),
+                const SizedBox(height: 12),
+                if (_telefonoController.text.isNotEmpty) ...[
+                  Row(
+                    children: [
+                      const Icon(Icons.phone, size: 14, color: Colors.white70),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text(_telefonoController.text, style: const TextStyle(color: Colors.white70, fontSize: 13))),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                ],
+                if (_direccionController.text.isNotEmpty) ...[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.location_on, size: 14, color: Colors.white70),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text(_direccionController.text, style: const TextStyle(color: Colors.white70, fontSize: 13))),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                ],
+                if (_emailController.text.isNotEmpty)
+                  Row(
+                    children: [
+                      const Icon(Icons.email, size: 14, color: Colors.white70),
+                      const SizedBox(width: 6),
+                      Expanded(child: Text(_emailController.text, style: const TextStyle(color: Colors.white70, fontSize: 13), overflow: TextOverflow.ellipsis)),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -216,63 +263,77 @@ class _PerfilTallerScreenState extends State<PerfilTallerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    Uint8List? logoBytes =
-    _logoBase64 != null ? base64Decode(_logoBase64!) : null;
-
-    final colorScheme = Theme.of(context).colorScheme;
+    Uint8List? logoBytes = _logoBase64 != null ? base64Decode(_logoBase64!) : null;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Perfil del Taller'),
+        elevation: 0,
       ),
       body: _cargando
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-        padding: const EdgeInsets.all(16),
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryBlue))
+          : SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
-          child: ListView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildHeader(logoBytes, colorScheme),
+              _buildHeader(logoBytes),
+
+              const Text("Datos de Configuración", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 16),
 
               TextFormField(
                 controller: _nombreController,
                 validator: (v) => v == null || v.isEmpty ? 'Campo obligatorio' : null,
                 decoration: const InputDecoration(
                   labelText: 'Nombre del Taller',
+                  prefixIcon: Icon(Icons.store_mall_directory_outlined),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _direccionController,
                 validator: (v) => v == null || v.isEmpty ? 'Campo obligatorio' : null,
                 decoration: const InputDecoration(
-                  labelText: 'Dirección',
+                  labelText: 'Dirección Comercial',
+                  prefixIcon: Icon(Icons.location_on_outlined),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _telefonoController,
+                keyboardType: TextInputType.phone,
                 validator: (v) => v == null || v.isEmpty ? 'Campo obligatorio' : null,
                 decoration: const InputDecoration(
-                  labelText: 'Teléfono',
+                  labelText: 'Teléfono de Contacto',
+                  prefixIcon: Icon(Icons.phone_outlined),
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 validator: (v) => v == null || v.isEmpty ? 'Campo obligatorio' : null,
                 decoration: const InputDecoration(
-                  labelText: 'Correo electrónico',
+                  labelText: 'Correo Electrónico',
+                  prefixIcon: Icon(Icons.email_outlined),
                 ),
               ),
-              const SizedBox(height: 20),
 
-              ElevatedButton.icon(
-                onPressed: _guardarDatos,
-                icon: const Icon(Icons.save),
-                label: const Text('Guardar'),
+              const SizedBox(height: 32),
+
+              SizedBox(
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: _guardarDatos,
+                  icon: const Icon(Icons.save),
+                  label: const Text('Guardar Cambios', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
               ),
             ],
           ),

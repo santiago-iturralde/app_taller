@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme.dart'; // Importamos el tema para mantener la identidad visual
 
 class PlanesScreen extends StatelessWidget {
   const PlanesScreen({super.key});
@@ -10,15 +11,24 @@ class PlanesScreen extends StatelessWidget {
         title: const Text("Planes y Suscripción"),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
         child: Column(
           children: [
+            // Cabecera ilustrativa
+            Icon(Icons.rocket_launch_rounded, size: 60, color: AppTheme.primaryBlue.withOpacity(0.8)),
+            const SizedBox(height: 16),
             const Text(
-              "Elige el plan ideal para tu taller",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              "Elige el plan ideal\npara tu taller",
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: AppTheme.primaryBlue, height: 1.2),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 8),
+            Text(
+              "Desbloqueá todo el potencial de tu negocio",
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
 
             // --- TARJETA PLAN GRATIS ---
             _buildPlanCard(
@@ -31,46 +41,50 @@ class PlanesScreen extends StatelessWidget {
                 "Presupuestos en PDF",
                 "Control de Egresos",
               ],
-              color: Colors.blueGrey,
-              isCurrent: true, // Visualmente marcado como actual
+              color: Colors.grey.shade400,
+              headerColor: AppTheme.primaryBlue,
+              isCurrent: true,
               buttonText: "Plan Actual",
               onTap: () {},
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
             // --- TARJETA PLAN PREMIUM ---
             _buildPlanCard(
               context,
               title: "PLAN PREMIUM",
-              price: "\$5.000 / mes",
+              price: "\$5.000",
+              period: "/ mes",
               features: [
                 "Todo lo del Plan Inicial",
-                "✅ Generación de Recibos (Talonarios)",
-                "✅ Reportes y Estadísticas Avanzadas",
-                "✅ Soporte Prioritario",
-                "✅ Copia de seguridad en la nube",
+                "Generación de Recibos (Talonarios)",
+                "Reportes y Estadísticas Avanzadas",
+                "Soporte Prioritario",
+                "Copia de seguridad en la nube",
               ],
-              color: Colors.amber.shade700,
+              color: Colors.amber.shade600,
+              headerColor: Colors.amber.shade800,
               isPremium: true,
               buttonText: "CONTRATAR AHORA",
-              // SOLO AVISO VISUAL
               onTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text("La pasarela de pagos estará disponible próximamente."),
-                    duration: Duration(seconds: 2),
+                    content: Text("🚀 La pasarela de pagos estará disponible próximamente."),
+                    backgroundColor: AppTheme.primaryBlue,
+                    duration: Duration(seconds: 3),
                   ),
                 );
               },
             ),
 
-            const SizedBox(height: 30),
-            const Text(
+            const SizedBox(height: 40),
+            Text(
               "Próximamente podrás gestionar tu suscripción directamente desde aquí.",
-              style: TextStyle(color: Colors.grey, fontSize: 12),
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
               textAlign: TextAlign.center,
             ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -81,72 +95,134 @@ class PlanesScreen extends StatelessWidget {
       BuildContext context, {
         required String title,
         required String price,
+        String period = "",
         required List<String> features,
         required Color color,
+        required Color headerColor,
         required String buttonText,
         required VoidCallback onTap,
         bool isCurrent = false,
         bool isPremium = false,
       }) {
-    return Card(
-      elevation: isPremium ? 8 : 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: isPremium ? BorderSide(color: color, width: 2) : BorderSide.none,
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isPremium ? color : Colors.grey.shade300,
+          width: isPremium ? 2.5 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isPremium ? color.withOpacity(0.2) : Colors.black.withOpacity(0.05),
+            blurRadius: isPremium ? 20 : 10,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (isPremium)
-              Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.amber[100],
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Text(
-                  "RECOMENDADO",
-                  style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 10),
-                  textAlign: TextAlign.center,
-                ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Banner Recomendado (Solo Premium)
+          if (isPremium)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(21)),
               ),
-            Text(
-              title,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              price,
-              style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            ...features.map((f) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.check_circle, size: 18, color: isPremium ? Colors.green : Colors.grey),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(f)),
+                  Icon(Icons.workspace_premium, color: Colors.white, size: 16),
+                  SizedBox(width: 6),
+                  Text(
+                    "MÁS ELEGIDO",
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12, letterSpacing: 1.2),
+                  ),
                 ],
               ),
-            )),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: isCurrent ? null : onTap,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: color,
-                foregroundColor: isPremium ? Colors.black : Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              child: Text(buttonText, style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
-          ],
-        ),
+
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: headerColor, letterSpacing: 1.5),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      price,
+                      style: TextStyle(fontSize: 40, fontWeight: FontWeight.w900, color: isPremium ? Colors.black87 : AppTheme.primaryBlue),
+                    ),
+                    if (period.isNotEmpty)
+                      Text(
+                        period,
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                const Divider(height: 1),
+                const SizedBox(height: 24),
+
+                // Lista de características
+                ...features.map((f) => Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        isPremium ? Icons.check_circle : Icons.check_circle_outline,
+                        size: 20,
+                        color: isPremium ? Colors.green.shade600 : Colors.grey.shade400,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          f,
+                          style: TextStyle(
+                            color: Colors.grey.shade800,
+                            fontWeight: isPremium ? FontWeight.w500 : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
+
+                const SizedBox(height: 8),
+
+                // Botón
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: isCurrent ? null : onTap,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isPremium ? color : Colors.grey.shade200,
+                      foregroundColor: isPremium ? Colors.white : Colors.grey.shade600,
+                      elevation: isPremium ? 4 : 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text(
+                      buttonText,
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isPremium ? Colors.white : Colors.grey.shade600),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

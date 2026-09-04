@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+
+<html lang="es">
+    
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taller de Reparaciones</title>
+    <!-- Acá conecto el archivo CSS -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="nav-logo">
+            <img src="foto_perfil.jpg" alt="Logo" class="logo-mini">
+            <span>Taller Olavarría</span> 
+        </div>
+        <ul class="nav-links">
+            <li><a href="#servicios">Servicios</a></li>
+            <li><a href="#contacto">Ubicación</a></li>
+        </ul>
+    </nav>
+
+    <!-- Sección principal de la portada -->
+    <header class="portada">
+        <div class="contenido-portada">
+            <img src="foto_perfil.jpg" alt="Logo Mi Taller" class="logo-portada">
+            <h1>Le devolvemos la potencia a tus herramientas</h1>
+            <p>Reparación y mantenimiento de máquinas y herramientas. Trabajo rápido, honesto y con garantía.</p>
+            <a href="https://wa.me/5492284676084?text=Hola,%20necesito%20consultar%20por%20una%20reparaci%C3%B3n" target="_blank" class="btn-whatsapp" id="btnWhatsapp">
+                <i class="fab fa-whatsapp"></i> Consultar por WhatsApp
+            </a>
+        </div> 
+    </header>
+
+    <!-- Sección Qué Reparamos -->
+    <section class="servicios" id="servicios">
+        
+        <h2>¿Qué reparamos?</h2>
+        <div class="grid-servicios">
+            
+            <!-- Tarjeta 1 -->
+            <div class="tarjeta revelar">
+                <i class="fas fa-hammer"></i>
+                <h3>Herramientas Eléctricas</h3>
+                <p>Amoladoras, taladros, rotomartillos, sierras circulares y lijadoras.</p>
+            </div>
+
+            <!-- Tarjeta 3 -->
+            <div class="tarjeta revelar">
+                <i class="fas fa-plug"></i>
+                <h3>Mantenimiento</h3>
+                <p>Limpieza, cambio de carbones, rodamientos, repuestos y lubricación general.</p>
+            </div>
+
+        </div>
+    </section>
+
+    <div class="franja-marcas">
+        <div class="ticker-movimiento">
+            <!-- Duplicamos los nombres para que el efecto infinito sea fluido -->
+            <span>DEWALT</span> <span>•</span>
+            <span>MAKITA</span> <span>•</span>
+            <span>BOSCH</span> <span>•</span>
+            <span>STIHL</span> <span>•</span>
+            <span>ECHO</span> <span>•</span>
+            <span>GAMMA</span> <span>•</span>
+            <span>EINHELL</span> <span>•</span>
+            <span>LUSQTOFF</span> <span>•</span>
+            <!-- Repetición -->
+            <span>DEWALT</span> <span>•</span>
+            <span>MAKITA</span> <span>•</span>
+            <span>BOSCH</span> <span>•</span>
+            <span>STIHL</span> <span>•</span>
+            <span>ECHO</span> <span>•</span>
+            <span>GAMMA</span> <span>•</span>
+            <span>EINHELL</span> <span>•</span>
+            <span>LUSQTOFF</span> <span>•</span>
+        </div>
+    </div>
+
+    <!-- Sección Cómo Trabajamos -->
+    <section class="proceso" id="proceso">
+        <h2>Nuestro Proceso de Trabajo</h2>
+        <div class="contenedor-pasos">
+            
+            <!-- Paso 1 -->
+            <div class="paso revelar">
+                <div class="numero-paso">1</div>
+                <h3>Recepción y Diagnóstico</h3>
+                <p>Recibimos tu máquina y realizamos una revisión técnica para detectar la falla.</p>
+            </div>
+
+            <!-- Línea conectora visual -->
+            <div class="linea-proceso"></div>
+
+            <!-- Paso 2 -->
+            <div class="paso revelar">
+                <div class="numero-paso">2</div>
+                <h3>Presupuesto y Reparación</h3>
+                <p>Te enviamos el presupuesto detallado. Una vez aprobado, reparamos tu herramienta.</p>
+            </div>
+
+            <!-- Línea conectora visual -->
+            <div class="linea-proceso"></div>
+
+            <!-- Paso 3 -->
+            <div class="paso revelar">
+                <div class="numero-paso">3</div>
+                <h3>Pruebas y Entrega</h3>
+                <p>Una vez aprobada, te enviamos un WhatsApp para que pases a retirarla.</p>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Sección de Estadísticas / Autoridad -->
+    <section class="estadisticas">
+        <div class="contenedor-stats">
+            
+            <div class="stat-caja">
+                <i class="fas fa-tools"></i>
+                <h3 class="contador" data-target="300">0</h3>
+                <p>Máquinas Reparadas</p>
+            </div>
+
+            <div class="stat-caja">
+                <i class="fas fa-calendar-alt"></i>
+                <h3 class="contador" data-target="15">0</h3>
+                <p>Años de Experiencia</p>
+            </div>
+
+
+            <div class="stat-caja">
+                <i class="fas fa-handshake"></i>
+                <h3 class="contador" data-target="100">0</h3>
+                <p>Clientes Satisfechos</p>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Sección Ubicación y Contacto -->
+    <section class="contacto" id="contacto">
+        <h2>Ubicación y Contacto</h2>
+        <div class="contacto-contenedor">
+            
+            <div class="info-contacto revelar">
+                <p><i class="fas fa-map-marker-alt"></i> <strong>Dirección:</strong> Dorrego 4613, Olavarría</p>
+                <p><i class="fas fa-clock"></i> <strong>Horarios:</strong> Lunes a Viernes de 8:30 a 19:00 hs</p>
+                <p><i class="fas fa-phone-alt"></i> <strong>Teléfono:</strong> 2284 676084</p>
+            </div>
+
+            <!-- Nuevo Contenedor del Mapa -->
+            <div class="mapa-contenedor revelar">
+                <iframe 
+                    src="https://maps.google.com/maps?q=Dorrego%204613,%20Olavarria&t=&z=15&ie=UTF8&iwloc=&output=embed" 
+                    width="100%" 
+                    height="300" 
+                    style="border:0;" 
+                    allowfullscreen="" 
+                    loading="lazy" 
+                    referrerpolicy="no-referrer-when-downgrade">
+                </iframe>
+            </div>
+
+            <div class="aviso-contacto">
+                <p>Traé tu máquina para un presupuesto rápido y sin compromiso, o escribinos directamente por WhatsApp.</p>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Pie de página -->
+    <footer class="pie-pagina">
+        <p>&copy; 2026 Taller de Reparaciones. Todos los derechos reservados.</p>
+        <p>Desarrollado por Santiago Iturralde.</p>
+    </footer>
+
+    <!-- Botón de WhatsApp Flotante -->
+    <a href="https://wa.me/5492284676084?text=Hola,%20necesito%20consultar%20por%20una%20reparaci%C3%B3n" class="btn-flotante" target="_blank">
+        <i class="fab fa-whatsapp"></i>
+    </a>
+
+
+    <script src="script.js"></script>
+</body>
+
+</html>
