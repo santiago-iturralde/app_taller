@@ -5,18 +5,14 @@ const app = express();
 app.use(express.json());
 
 let latestQR = null;
+let status = 'Iniciando servidor y navegador en Render...';
 
 process.on('unhandledRejection', (reason) => {
-    console.error('⚠️ Advertencia:', reason);
+    console.error('⚠️ Advertencia (Unhandled Rejection):', reason);
 });
 
 const client = new Client({
     authStrategy: new LocalAuth(),
-    // Forzar version cacheada liviana para no saturar la memoria RAM
-    webVersionCache: {
-        type: 'remote',
-        remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
-    },
     puppeteer: {
         executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
         headless: true,
@@ -27,34 +23,70 @@ const client = new Client({
             '--disable-accelerated-2d-canvas',
             '--no-first-run',
             '--no-zygote',
-            '--disable-gpu',
-            '--disable-extensions',
-            '--js-flags="--max-old-space-size=256"' // Limita la RAM usada por Chromium
+            '--disable-gpu'
         ]
     }
 });
 
 client.on('qr', (qr) => {
     latestQR = qr;
-    console.log('📱 Nuevo QR generado optimizado. Ver en: /qr');
+    status = 'QR listo para escanear';
+    console.log('📱 Nuevo QR generado. Ver en: /qr');
+});
+
+client.on('loading_screen', (percent, message) => {
+    status = `Cargando WhatsApp Web: ${percent}% (${message || ''})`;
+    console.log(`⏳ ${status}`);
+});
+
+client.on('authenticated', () => {
+    status = 'Autenticado correctamente. Finalizando sincronización...';
+    console.log('🔑 Sesión autenticada.');
 });
 
 client.on('ready', () => {
     latestQR = null;
+    status = 'Conectado';
     console.log('✅ ¡WhatsApp Conectado y listo en la nube!');
 });
 
+client.on('disconnected', (reason) => {
+    latestQR = null;
+    status = 'Desconectado';
+    console.log('❌ Dispositivo desconectado:', reason);
+});
+
 app.get('/qr', (req, res) => {
-    if (!latestQR) {
-        return res.send('<h2 style="font-family:sans-serif;text-align:center;margin-top:50px;color:#2e7d32;">✅ WhatsApp ya está conectado (o inicializando). Recargá en unos segundos.</h2>');
+    if (status === 'Conectado') {
+        return res.send(`
+            <html>
+                <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;background-color:#e8f5e9;">
+                    <h1 style="color:#2e7d32;">✅ ¡WhatsApp Conectado Exitosamente!</h1>
+                    <p style="color:#444;font-size:18px;">El sistema ya está listo para enviar mensajes automáticamente desde la app del taller.</p>
+                </body>
+            </html>
+        `);
     }
+
+    if (!latestQR) {
+        return res.send(`
+            <html>
+                <head><meta http-equiv="refresh" content="5"></head>
+                <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;background-color:#fff3e0;">
+                    <h2 style="color:#e65100;">⏳ ${status}</h2>
+                    <p style="color:#666;">La página se actualizará automáticamente cada 5 segundos...</p>
+                </body>
+            </html>
+        `);
+    }
+
     const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(latestQR)}`;
     res.send(`
         <html>
             <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;background-color:#f4f4f9;">
                 <h2 style="color:#333;">Escaneá este QR con el celular de tu papá:</h2>
                 <img src="${qrImageUrl}" alt="QR Code" style="border:12px solid white;box-shadow:0 4px 15px rgba(0,0,0,0.15);border-radius:12px;"/>
-                <p style="color:#666;margin-top:15px;">Si expira, actualizá la página.</p>
+                <p style="color:#666;margin-top:15px;">Si el código expira, recargá la página.</p>
             </body>
         </html>
     `);
@@ -91,7 +123,11 @@ app.post('/enviar', async (req, res) => {
     }
 });
 
-client.initialize().catch(err => console.error('❌ Error Client:', err));
+status = 'Inicializando Chromium y cliente de WhatsApp...';
+client.initialize().catch(err => {
+    console.error('❌ Error Client:', err);
+    status = 'Error al iniciar WhatsApp: ' + err.message;
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
