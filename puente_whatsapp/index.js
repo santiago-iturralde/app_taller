@@ -1,13 +1,13 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const express = require('express');
-const qrcode = require('qrcode-terminal');
 const app = express();
 
 app.use(express.json());
 
-// Evitar que el servidor se apague ante fallos de conexión de Puppeteer
+let latestQR = null;
+
 process.on('unhandledRejection', (reason) => {
-    console.error('⚠️ Advertencia (Unhandled Rejection capturado):', reason);
+    console.error('⚠️ Advertencia:', reason);
 });
 
 const client = new Client({
@@ -28,18 +28,30 @@ const client = new Client({
 });
 
 client.on('qr', (qr) => {
-    console.log('--------------------------------------------------');
-    console.log('📱 ESCANEA ESTE CÓDIGO QR CON WHATSAPP:');
-    qrcode.generate(qr, { small: true });
-    console.log('--------------------------------------------------');
+    latestQR = qr;
+    console.log('📱 Nuevo QR generado. Ver en: /qr');
 });
 
 client.on('ready', () => {
+    latestQR = null;
     console.log('✅ ¡WhatsApp Conectado y listo en la nube!');
 });
 
-client.on('auth_failure', (msg) => {
-    console.error('❌ Error de autenticación:', msg);
+// Ruta para ver el QR como una imagen limpia
+app.get('/qr', (req, res) => {
+    if (!latestQR) {
+        return res.send('<h2 style="font-family:sans-serif;text-align:center;margin-top:50px;color:#2e7d32;">✅ WhatsApp ya está conectado (o se está iniciando, si no conecta recargá en unos segundos).</h2>');
+    }
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(latestQR)}`;
+    res.send(`
+        <html>
+            <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;background-color:#f4f4f9;">
+                <h2 style="color:#333;">Escaneá este QR con el celular de tu papá:</h2>
+                <img src="${qrImageUrl}" alt="QR Code" style="border:12px solid white;box-shadow:0 4px 15px rgba(0,0,0,0.15);border-radius:12px;"/>
+                <p style="color:#666;margin-top:15px;">Si el código expira, actualizá la página.</p>
+            </body>
+        </html>
+    `);
 });
 
 app.get('/ping', (req, res) => {
@@ -73,10 +85,7 @@ app.post('/enviar', async (req, res) => {
     }
 });
 
-console.log('🔄 Inicializando cliente de WhatsApp...');
-client.initialize().catch(err => {
-    console.error('❌ Error al inicializar WhatsApp Client:', err);
-});
+client.initialize().catch(err => console.error('❌ Error Client:', err));
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
