@@ -7,7 +7,6 @@ const path = require('path');
 const app = express();
 app.use(express.json());
 
-// Permitir peticiones desde la app Flutter Web (CORS)
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
@@ -34,7 +33,7 @@ function clearAuthFolders() {
     }
 }
 
-// Configuración ultra-liviana exacta que te vincula sin problemas
+// Configuración optimizada para evitar crasheos de RAM al sincronizar
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
@@ -50,7 +49,7 @@ const client = new Client({
             '--disable-gpu',
             '--disable-extensions',
             '--disable-component-update',
-            '--js-flags="--max-old-space-size=128"'
+            '--js-flags="--max-old-space-size=100"'
         ]
     }
 });
@@ -62,7 +61,7 @@ client.on('qr', (qr) => {
 });
 
 client.on('authenticated', () => {
-    console.log('🔐 Dispositivo autenticado.');
+    console.log('🔐 Dispositivo autenticado correctamente.');
     clientStatus = 'AUTHENTICATED';
 });
 
@@ -84,14 +83,12 @@ client.on('disconnected', (reason) => {
     clearAuthFolders();
 });
 
-// Endpoint visual del QR
 app.get('/qr', async (req, res) => {
-    // CORRECCIÓN: Acepta READY o AUTHENTICATED como sesión activa
     if (clientStatus === 'READY' || clientStatus === 'AUTHENTICATED') {
         return res.send(`
             <div style="text-align:center;font-family:sans-serif;margin-top:50px;">
                 <h1 style="color:#2e7d32;">✅ ¡WhatsApp Conectado y Activo!</h1>
-                <p style="color:#555;">Estado actual: <b>${clientStatus}</b>. El servicio está listo para enviar notificaciones.</p>
+                <p style="color:#555;">Estado actual: <b>${clientStatus}</b>. Podés enviar notificaciones desde la app.</p>
             </div>
         `);
     }
@@ -100,7 +97,7 @@ app.get('/qr', async (req, res) => {
         return res.send(`
             <div style="text-align:center;font-family:sans-serif;margin-top:50px;">
                 <h2 style="color:#e65100;">⏳ Estado: ${clientStatus}</h2>
-                <p style="color:#666;">Abriendo navegador Chromium... La página se actualizará sola.</p>
+                <p style="color:#666;">Cargando servidor... La página se actualizará sola.</p>
                 <script>setTimeout(() => location.reload(), 4000);</script>
             </div>
         `);
@@ -131,7 +128,6 @@ app.get('/reset', (req, res) => {
 
 app.post('/enviar', async (req, res) => {
     try {
-        // CORRECCIÓN: Permite enviar tanto en READY como en AUTHENTICATED
         if (clientStatus !== 'READY' && clientStatus !== 'AUTHENTICATED') {
             return res.status(503).json({ error: `WhatsApp no está conectado aún. Estado: ${clientStatus}` });
         }
@@ -154,7 +150,7 @@ app.post('/enviar', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`🚀 Servidor Express iniciado en el puerto ${PORT}`);
-    clientStatus = 'Iniciando navegador en modo ultra-liviano...';
+    clientStatus = 'Iniciando navegador...';
     
     client.initialize().catch(err => {
         console.error('❌ Error al inicializar cliente de WhatsApp:', err);
