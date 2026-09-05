@@ -7,7 +7,7 @@ const path = require('path');
 const app = express();
 app.use(express.json());
 
-// Permitir peticiones desde la app Flutter (CORS)
+// Permitir peticiones desde la app Flutter Web (CORS)
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
@@ -34,13 +34,9 @@ function clearAuthFolders() {
     }
 }
 
-// Configuración original para compatibilidad total de escaneo
+// Configuración ultra-liviana exacta que te vincula sin problemas
 const client = new Client({
     authStrategy: new LocalAuth(),
-    webVersionCache: {
-        type: 'remote',
-        remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html',
-    },
     puppeteer: {
         headless: true,
         args: [
@@ -54,7 +50,7 @@ const client = new Client({
             '--disable-gpu',
             '--disable-extensions',
             '--disable-component-update',
-            '--js-flags="--max-old-space-size=256"'
+            '--js-flags="--max-old-space-size=128"'
         ]
     }
 });
@@ -88,7 +84,9 @@ client.on('disconnected', (reason) => {
     clearAuthFolders();
 });
 
+// Endpoint visual del QR
 app.get('/qr', async (req, res) => {
+    // CORRECCIÓN: Acepta READY o AUTHENTICATED como sesión activa
     if (clientStatus === 'READY' || clientStatus === 'AUTHENTICATED') {
         return res.send(`
             <div style="text-align:center;font-family:sans-serif;margin-top:50px;">
@@ -102,7 +100,7 @@ app.get('/qr', async (req, res) => {
         return res.send(`
             <div style="text-align:center;font-family:sans-serif;margin-top:50px;">
                 <h2 style="color:#e65100;">⏳ Estado: ${clientStatus}</h2>
-                <p style="color:#666;">Cargando navegador... La página se actualizará sola.</p>
+                <p style="color:#666;">Abriendo navegador Chromium... La página se actualizará sola.</p>
                 <script>setTimeout(() => location.reload(), 4000);</script>
             </div>
         `);
@@ -115,7 +113,7 @@ app.get('/qr', async (req, res) => {
                 <h2>Escaneá el código QR con tu celular</h2>
                 <img src="${qrImage}" style="width:280px;height:280px;border:8px solid white;box-shadow:0 4px 10px rgba(0,0,0,0.2);border-radius:10px;"/>
                 <p>Estado: <b>${clientStatus}</b></p>
-                <script>setTimeout(() => location.reload(), 5000);</script>
+                <script>setTimeout(() => location.reload(), 6000);</script>
             </div>
         `);
     } catch (err) {
@@ -133,11 +131,10 @@ app.get('/reset', (req, res) => {
 
 app.post('/enviar', async (req, res) => {
     try {
-        // CORRECCIÓN: Permite enviar si está en READY o en AUTHENTICATED
+        // CORRECCIÓN: Permite enviar tanto en READY como en AUTHENTICATED
         if (clientStatus !== 'READY' && clientStatus !== 'AUTHENTICATED') {
-            return res.status(503).json({ error: `WhatsApp no está listo. Estado actual: ${clientStatus}` });
+            return res.status(503).json({ error: `WhatsApp no está conectado aún. Estado: ${clientStatus}` });
         }
-
         const { cliente, numero, maquina, precio } = req.body;
         if (!numero) return res.status(400).json({ error: 'Falta el número de teléfono' });
 
@@ -157,7 +154,7 @@ app.post('/enviar', async (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`🚀 Servidor Express iniciado en el puerto ${PORT}`);
-    clientStatus = 'Iniciando navegador...';
+    clientStatus = 'Iniciando navegador en modo ultra-liviano...';
     
     client.initialize().catch(err => {
         console.error('❌ Error al inicializar cliente de WhatsApp:', err);
