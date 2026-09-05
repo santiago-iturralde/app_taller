@@ -34,14 +34,12 @@ class _ReparacionesTabState extends State<ReparacionesTab> {
         .collection('clientes');
   }
 
-  // --- FUNCIÓN QUE CONECTA CON N8N Y WHATSAPP ---
   Future<void> _enviarWhatsApp({
     required String clienteId,
     required String maquina,
     required String precio,
   }) async {
     try {
-      // 1. Buscamos al cliente en Firebase para obtener su nombre y teléfono real
       final docCliente = await clientesCol.doc(clienteId).get();
       if (!docCliente.exists) {
         if (!mounted) return;
@@ -53,7 +51,6 @@ class _ReparacionesTabState extends State<ReparacionesTab> {
 
       final clienteData = docCliente.data();
       final String nombreCliente = clienteData?['nombre'] ?? 'Cliente';
-      // Ajustá 'telefono' o 'numero' según cómo guardás el teléfono en la colección Clientes
       final String numeroTelefono = clienteData?['telefono'] ?? clienteData?['numero'] ?? '';
 
       if (numeroTelefono.isEmpty) {
@@ -64,8 +61,8 @@ class _ReparacionesTabState extends State<ReparacionesTab> {
         return;
       }
 
-      // 2. Disparamo la petición HTTP POST a n8n
-      final url = Uri.parse('https://puente-whatsapp-taller.onrender.com/enviar');      final response = await http.post(
+      final url = Uri.parse('https://puente-whatsapp-taller.onrender.com/enviar');
+      final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -81,14 +78,16 @@ class _ReparacionesTabState extends State<ReparacionesTab> {
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('✅ ¡Aviso de máquina lista enviado por WhatsApp!'),
+            content: Text('✅ ¡Aviso enviado por WhatsApp!'),
             backgroundColor: Colors.green,
           ),
         );
       } else {
+        final bodyData = jsonDecode(response.body);
+        final errorMsg = bodyData['error'] ?? 'Estado HTTP ${response.statusCode}';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('⚠️ Error al enviar: ${response.statusCode}'),
+            content: Text('⚠️ $errorMsg'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -97,7 +96,7 @@ class _ReparacionesTabState extends State<ReparacionesTab> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('❌ Error de conexión con n8n: $e'),
+          content: Text('❌ Error de conexión: $e'),
           backgroundColor: Colors.redAccent,
         ),
       );
