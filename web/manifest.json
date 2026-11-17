@@ -1,11 +1,11 @@
 {
-    "name": "taller_reparaciones",
-    "short_name": "MiTaller",
+    "name": "WorkControl",
+    "short_name": "WorkControl",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Gestión de talleres y negocios de servicios",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -1,83 +1,94 @@
-# 🛠️ WorkControl  - Gestión de Taller en Tiempo Real
+# WorkControl
 
-> **Solución integral multiplataforma para la administración de reparaciones, generacion de talonarios y presupuestos y gestion de finanzas, potenciada por la infraestructura en la nube de Firebase.**
+Sistema de gestión para talleres y negocios de servicios: trabajos, clientes,
+presupuestos, cobros, gastos y reportes. Multiplataforma (web, Android, iOS)
+con Flutter + Firebase.
 
-![Project Status](https://img.shields.io/badge/Status-Completed-brightgreen)
-![Tech Stack](https://img.shields.io/badge/Stack-Flutter%20%7C%20Dart%20%7C%20Firebase-orange)
-![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Web-blue)
+Se adapta al **rubro** de cada negocio (reparación de herramientas, lubricentro,
+taller mecánico, motos, celulares, PC, electrodomésticos u otro): cambian los
+nombres, los campos (patente, kilometraje, N° de serie…) y los valores por
+defecto, pero el motor es el mismo para todos.
 
-## 📖 El Problema:
-Muchos talleres mecánicos aún dependen de procesos manuales, planillas de papel o software local que no permite el seguimiento remoto. Los problemas comunes incluyen:
-1. **Falta de Trazabilidad:** Dificultad para que el administrador sepa en qué etapa de reparación está cada maquina/vehiculo.
-2. **Pérdida de Historial:** Dificultad para acceder rápidamente a lo que se le hizo a un vehículo meses atrás.
+## Funcionalidades
 
-## 🚀 La Solución (Architecture)
-**WorkControl** ofrece una experiencia fluida tanto para el mecánico como para el dueño del taller, utilizando **Flutter** para una interfaz reactiva y **Firebase** para la persistencia de datos y sincronización en tiempo real.
+- **Inicio**: trabajos en curso, listos para retirar, saldo por cobrar y lo cobrado en el mes.
+- **Trabajos (órdenes)**: numeración correlativa, estados (recibido → en proceso → listo → entregado),
+  ítems con total, señas y cobros parciales, orden de trabajo en PDF, aviso por WhatsApp.
+- **Clientes**: ficha con historial, saldo y contacto directo.
+- **Presupuestos**: PDF, envío por WhatsApp, validez y conversión en trabajo con un clic.
+- **Caja**: cobros con recibo numerado (se anulan, no se borran) y gastos por categoría.
+- **Reportes (PRO)**: cobrado, gastos, resultado, comparación con el mes anterior, desgloses.
+- **Búsqueda** por nombre, teléfono, documento, patente o número.
+- **Diseño adaptable**: barra lateral en PC, barra inferior en celular, modo oscuro.
 
-### Principales Características:
-* **Dashboard en Tiempo Real:** Visualización instantánea del estado de las maquinas/vehiculos (En espera, En reparación, Listo).
-* **Gestión de Clientes y maquinarias:** Registro detallado con especificaciones técnicas.
-* **Seguridad:** Autenticación robusta y reglas de seguridad granulares en la base de datos.
+## Arquitectura
 
-## 🛠️ Stack Tecnológico
+```
+lib/
+  app/        Arranque, sesión, navegación (shell) y datos del producto
+  core/       Tema, componentes de UI, formularios, PDF y utilidades
+  data/       Modelos, repositorios (acceso a Firestore) y migración
+  features/   Una carpeta por sección: inicio, trabajos, clientes, …
+```
 
-| Componente | Tecnología | Razón de la elección |
-|------------|------------|-----------------------|
-| **Frontend** | **Flutter** | Desarrollo único para Android, iOS y Web con alto rendimiento nativo. |
-| **Lenguaje** | **Dart** | Tipado fuerte y excelente manejo de flujos asíncronos para UI reactiva. |
-| **Base de Datos**| **Cloud Firestore** | Base de Datos NoSQL que permite sincronización en tiempo real (Offline-first). |
-| **Autenticación**| **Firebase Auth** | Manejo seguro de sesiones y perfiles de usuario. |
+- Las pantallas **no hablan con Firestore**: usan los repositorios de `data/repositories`
+  a través de `Sesion.of(context)`.
+- Operaciones que deben ser atómicas (numeración, cobros, anulaciones, convertir presupuesto)
+  usan **transacciones**.
+- Los cálculos de negocio (saldos, reportes, migración) son **funciones puras con tests**.
 
-## ⚡ Cómo correr el proyecto
+### Datos (Firestore)
 
-### Prerrequisitos
-* **Flutter SDK** (Versión estable más reciente)
-* **Dart SDK**
-* Un editor (VS Code o Android Studio)
-* Una cuenta en **Firebase Console**
+```
+negocios/{negocioId}                   datos del negocio, rubro y plan
+negocios/{negocioId}/miembros/{uid}    usuarios con acceso y su rol
+negocios/{negocioId}/clientes|ordenes|presupuestos|pagos|gastos
+negocios/{negocioId}/meta/contadores   numeración correlativa
+negocios/{negocioId}/meta/branding     logo
+users/{uid}                            a qué negocio pertenece (+ datos del sistema anterior)
+```
 
-### Instalación y Configuración
-1. **Clonar el repositorio**
-   ```bash
-   git clone https://github.com/santiago-iturralde/app_taller.git
-   cd taller_reparaciones
-   ```
+### Seguridad
 
-2. **Instalar dependencias**
-   ```bash
-   flutter pub get
-   ```
+Las reglas están en [`firestore.rules`](firestore.rules) y tienen tests en
+[`tools/reglas_test`](tools/reglas_test). Garantizan, entre otras cosas, que:
 
-3. **Configurar Firebase**
-   * Crea un proyecto en [Firebase Console](https://console.firebase.google.com/).
-   * Habilita **Authentication** (Email/Password) y **Cloud Firestore**.
-   * Descarga el archivo `google-services.json` (para Android) y `GoogleService-Info.plist` (para iOS).
-   * Coloca los archivos en sus carpetas correspondientes:
-     * Android: `android/app/`
-     * iOS: `ios/Runner/`
+- cada negocio sólo es visible para sus miembros;
+- **el plan PRO no se puede activar desde la app** (sólo desde la consola o un backend);
+- los cobros no se borran ni se editan (sólo se anulan) y la numeración no retrocede;
+- un trabajo con cobros no se puede eliminar.
 
-4. **Ejecutar la App**
-   ```bash
-   flutter run
-   ```
+## Desarrollo
 
-## 🏗️ Estructura de Datos (Firestore)
-El proyecto utiliza una estructura de documentos optimizada para lectura rápida:
-* `talleres/{tallerId}`: Información del establecimiento.
-* `talleres/{tallerId}/vehiculos/{vehiculoId}`: Historial y especificaciones.
-* `talleres/{tallerId}/ordenes/{ordenId}`: Estados de reparación, costos y repuestos usados.
+```bash
+flutter pub get
+flutter run -d chrome                       # contra el proyecto real
+```
 
-## 📸 Screenshots
+Para probar sin tocar datos reales, con los emuladores de Firebase:
 
-### Dashboard Principal
-<img width="1917" height="1054" alt="paginaInicial" src="https://github.com/user-attachments/assets/53a77987-bcd4-47bc-8b51-6b601b9fb9c3" />
+```bash
+firebase emulators:start --only auth,firestore
+flutter run -d chrome --dart-define=EMULADORES=true
+```
 
+### Tests
 
-### Vista de finanza y agente ia 
-<img width="1917" height="1079" alt="Agenteiataller" src="https://github.com/user-attachments/assets/dd20798e-f094-457e-8ede-54fa7273ebce" />
-<img width="1918" height="1078" alt="PresupuestosTaller" src="https://github.com/user-attachments/assets/1419e09f-5c4b-4e25-b0d2-d805cf023b83" />
+```bash
+flutter analyze
+flutter test                                # lógica y componentes
+cd tools/reglas_test && npm install && npm test   # reglas de seguridad (requiere Java)
+```
 
+## Publicar una versión
 
----
+1. `firebase deploy --only firestore:rules,firestore:indexes`
+   (la versión anterior de la app sigue funcionando con estas reglas).
+2. `flutter build web --release && firebase deploy --only hosting:app`
+3. En la consola de Firestore, `configuracion/app_info` → `version: 4`
+   para que las pestañas abiertas con la versión vieja pidan recargar.
 
-Desarrollado por [Santiago Iturralde](https://github.com/santiago-iturralde) 🛠️🏁
+Al ingresar, los usuarios del sistema anterior ven una pantalla de
+actualización que **copia** sus datos al nuevo formato (no borra nada de
+`users/{uid}`). Si tenían plan premium, hay que asignarlo en la consola:
+`negocios/{uid}` → `plan: "pro"` (y opcionalmente `planVence`).

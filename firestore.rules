@@ -1,0 +1,166 @@
+rules_version = '2';
+
+// Reglas de seguridad de Firestore.
+//
+// Modelo: cada negocio vive en negocios/{negocioId}. Sólo los miembros
+// (negocios/{id}/miembros/{uid}) pueden leer o escribir sus datos.
+// El plan (plan, planVence) y el dueño (ownerUid) NUNCA los modifica la
+// app: se cambian desde la consola o desde un backend con credenciales de
+// administrador (que no pasa por estas reglas).
+//
+// Deploy: firebase deploy --only firestore:rules,firestore:indexes
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function autenticado() {
+      return request.auth != null;
+    }
+
+    function miembro(negocioId) {
+      return autenticado()
+        && exists(/databases/$(database)/documents/negocios/$(negocioId)/miembros/$(request.auth.uid));
+    }
+
+    function rol(negocioId) {
+      return get(/databases/$(database)/documents/negocios/$(negocioId)/miembros/$(request.auth.uid)).data.rol;
+    }
+
+    function administra(negocioId) {
+      return miembro(negocioId) && rol(negocioId) in ['owner', 'admin'];
+    }
+
+    function cambia(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+    }
+
+    function textoValido(campo, maximo) {
+      return request.resource.data[campo] is string
+        && request.resource.data[campo].size() <= maximo;
+    }
+
+    // ------------------------------------------------------------ Negocios
+    match /negocios/{negocioId} {
+      // El usuario también puede leer "su" negocio (ID = su UID) antes de
+      // ser miembro, para saber si ya existe al crearlo o migrar.
+      allow read: if miembro(negocioId) || (autenticado() && negocioId == request.auth.uid);
+
+      // El primer negocio de cada usuario usa su UID como ID y nace gratis.
+      allow create: if autenticado()
+        && negocioId == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.plan == 'free'
+        && !('planVence' in request.resource.data)
+        && textoValido('nombre', 120);
+
+      allow update: if administra(negocioId)
+        && !cambia(['plan', 'planVence', 'ownerUid'])
+        && textoValido('nombre', 120);
+
+      allow delete: if false;
+
+      match /miembros/{uid} {
+        allow read: if miembro(negocioId);
+
+        // El dueño se registra a sí mismo al crear el negocio.
+        allow create, update: if autenticado()
+          && uid == request.auth.uid
+          && request.resource.data.rol == 'owner'
+          && getAfter(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerUid == request.auth.uid;
+
+        // El dueño puede quitar a otros miembros (nunca a sí mismo).
+        allow delete: if miembro(negocioId) && rol(negocioId) == 'owner' && uid != request.auth.uid;
+      }
+
+      match /clientes/{id} {
+        allow read: if miembro(negocioId);
+        allow create, update: if miembro(negocioId)
+          && textoValido('nombre', 150)
+          && request.resource.data.nombre.size() > 0;
+        allow delete: if miembro(negocioId);
+      }
+
+      match /ordenes/{id} {
+        allow read: if miembro(negocioId);
+        allow create, update: if miembro(negocioId)
+          && request.resource.data.numero is int
+          && request.resource.data.total is number
+          && request.resource.data.pagado is number
+          && request.resource.data.pagado >= 0;
+        // Un trabajo con cobros no se borra: primero se anulan los cobros.
+        allow delete: if miembro(negocioId) && resource.data.get('pagado', 0) == 0;
+      }
+
+      match /presupuestos/{id} {
+        allow read: if miembro(negocioId);
+        allow create, update: if miembro(negocioId)
+          && request.resource.data.numero is int
+          && request.resource.data.total is number;
+        allow delete: if miembro(negocioId) && resource.data.get('ordenId', null) == null;
+      }
+
+      // Los cobros tienen numeración correlativa: no se borran ni se editan,
+      // sólo se pueden anular.
+      match /pagos/{id} {
+        allow read: if miembro(negocioId);
+        allow create: if miembro(negocioId)
+          && request.resource.data.numero is int
+          && request.resource.data.monto is number
+          && request.resource.data.monto >= 0;
+        // Se permite anular, o reescribir sin cambios (reintento de migración).
+        allow update: if miembro(negocioId)
+          && (request.resource.data.diff(resource.data).affectedKeys().size() == 0
+              || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['anulado', 'anuladoEn'])
+                  && request.resource.data.get('anulado', false) == true));
+        allow delete: if false;
+      }
+
+      match /gastos/{id} {
+        allow read, delete: if miembro(negocioId);
+        allow create, update: if miembro(negocioId)
+          && request.resource.data.monto is number
+          && request.resource.data.monto > 0
+          && textoValido('descripcion', 300);
+      }
+
+      // Contadores de numeración: sólo pueden avanzar.
+      match /meta/contadores {
+        allow read: if miembro(negocioId);
+        allow create: if miembro(negocioId);
+        allow update: if miembro(negocioId)
+          && request.resource.data.get('ordenes', 0) >= resource.data.get('ordenes', 0)
+          && request.resource.data.get('presupuestos', 0) >= resource.data.get('presupuestos', 0)
+          && request.resource.data.get('pagos', 0) >= resource.data.get('pagos', 0);
+      }
+
+      match /meta/branding {
+        allow read: if miembro(negocioId);
+        allow write: if administra(negocioId)
+          && (request.resource.data.get('logoBase64', null) == null
+              || request.resource.data.logoBase64.size() < 700000);
+      }
+    }
+
+    // ------------------------------------------------------------ Usuarios
+    // Perfil mínimo (a qué negocio pertenece) + datos del sistema anterior,
+    // que se conservan como respaldo luego de la migración.
+    match /users/{uid} {
+      allow read: if autenticado() && request.auth.uid == uid;
+      allow create: if autenticado() && request.auth.uid == uid
+        && request.resource.data.get('isPremium', false) == false;
+      allow update: if autenticado() && request.auth.uid == uid
+        && (!cambia(['isPremium']) || request.resource.data.isPremium == false);
+      allow delete: if false;
+
+      match /{coleccion}/{documento=**} {
+        allow read, write: if autenticado() && request.auth.uid == uid;
+      }
+    }
+
+    // Configuración global (aviso de nueva versión, etc.). Sólo lectura.
+    match /configuracion/{doc} {
+      allow read: if autenticado();
+      allow write: if false;
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "reglas-test",
+  "private": true,
+  "description": "Tests de las reglas de seguridad de Firestore contra el emulador",
+  "type": "module",
+  "scripts": {
+    "test": "firebase emulators:exec --only firestore --project demo-workcontrol \"node --test reglas.test.js\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.0.0"
+  }
+}
