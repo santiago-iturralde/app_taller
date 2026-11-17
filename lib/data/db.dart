@@ -18,6 +18,8 @@ class Db {
   CollectionReference<Json> get presupuestos => negocio.collection('presupuestos');
   CollectionReference<Json> get pagos => negocio.collection('pagos');
   CollectionReference<Json> get gastos => negocio.collection('gastos');
+  CollectionReference<Json> get productos => negocio.collection('productos');
+  CollectionReference<Json> get movimientosStock => negocio.collection('movimientosStock');
   DocumentReference<Json> get contadores => negocio.collection('meta').doc('contadores');
   DocumentReference<Json> get branding => negocio.collection('meta').doc('branding');
 

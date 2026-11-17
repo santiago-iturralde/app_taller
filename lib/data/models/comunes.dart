@@ -33,31 +33,48 @@ List<String> leerListaTexto(Object? valor) =>
 double redondear(double valor) => (valor * 100).round() / 100;
 
 /// Una línea de detalle (mano de obra, repuesto, servicio…).
+///
+/// Si viene del catálogo, [productoId] lo vincula para descontar stock.
 class ItemLinea {
-  const ItemLinea({required this.descripcion, this.cantidad = 1, this.precioUnitario = 0});
+  const ItemLinea({
+    required this.descripcion,
+    this.cantidad = 1,
+    this.precioUnitario = 0,
+    this.productoId,
+    this.costoUnitario,
+  });
 
   final String descripcion;
   final double cantidad;
   final double precioUnitario;
+  final String? productoId;
+  final double? costoUnitario;
 
   double get subtotal => redondear(cantidad * precioUnitario);
+  bool get delCatalogo => productoId != null && productoId!.isNotEmpty;
 
   ItemLinea copyWith({String? descripcion, double? cantidad, double? precioUnitario}) => ItemLinea(
         descripcion: descripcion ?? this.descripcion,
         cantidad: cantidad ?? this.cantidad,
         precioUnitario: precioUnitario ?? this.precioUnitario,
+        productoId: productoId,
+        costoUnitario: costoUnitario,
       );
 
   factory ItemLinea.fromMap(Map<String, dynamic> m) => ItemLinea(
         descripcion: leerTexto(m['descripcion'] ?? m['desc']),
         cantidad: m['cantidad'] == null ? 1 : leerDouble(m['cantidad']),
         precioUnitario: leerDouble(m['precioUnitario'] ?? m['precio']),
+        productoId: leerTextoONull(m['productoId']),
+        costoUnitario: m['costoUnitario'] == null ? null : leerDouble(m['costoUnitario']),
       );
 
   Map<String, dynamic> toMap() => {
         'descripcion': descripcion,
         'cantidad': cantidad,
         'precioUnitario': precioUnitario,
+        if (delCatalogo) 'productoId': productoId,
+        if (costoUnitario != null) 'costoUnitario': costoUnitario,
       };
 
   static List<ItemLinea> listaDesde(Object? valor) => valor is List

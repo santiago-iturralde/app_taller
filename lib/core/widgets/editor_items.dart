@@ -7,10 +7,19 @@ import '../utils/formato.dart';
 
 /// Editor de líneas (descripción × cantidad × precio) con total en vivo.
 class EditorItems extends StatefulWidget {
-  const EditorItems({super.key, required this.inicial, required this.onCambio, this.sugerencias = const []});
+  const EditorItems({
+    super.key,
+    required this.inicial,
+    required this.onCambio,
+    this.sugerencias = const [],
+    this.elegirDelCatalogo,
+  });
 
   final List<ItemLinea> inicial;
   final ValueChanged<List<ItemLinea>> onCambio;
+
+  /// Abre el buscador del catálogo y devuelve el ítem elegido.
+  final Future<ItemLinea?> Function()? elegirDelCatalogo;
 
   /// Descripciones frecuentes que se ofrecen como atajo.
   final List<String> sugerencias;
@@ -21,11 +30,14 @@ class EditorItems extends StatefulWidget {
 
 class _Fila {
   _Fila(ItemLinea item)
-      : descripcion = TextEditingController(text: item.descripcion),
+      : origen = item,
+        descripcion = TextEditingController(text: item.descripcion),
         cantidad = TextEditingController(text: item.cantidad == 1 ? '1' : Formato.cantidad(item.cantidad)),
         precio = TextEditingController(text: Formato.montoEditable(item.precioUnitario)),
         clave = UniqueKey();
 
+  /// Ítem original: conserva el vínculo con el catálogo y el costo.
+  final ItemLinea origen;
   final TextEditingController descripcion;
   final TextEditingController cantidad;
   final TextEditingController precio;
@@ -35,6 +47,8 @@ class _Fila {
         descripcion: descripcion.text.trim(),
         cantidad: Formato.parseMonto(cantidad.text) ?? 1,
         precioUnitario: Formato.parseMonto(precio.text) ?? 0,
+        productoId: origen.productoId,
+        costoUnitario: origen.costoUnitario,
       );
 
   void dispose() {
@@ -67,6 +81,20 @@ class _EditorItemsState extends State<EditorItems> {
     _notificar();
   }
 
+  Future<void> _agregarDelCatalogo() async {
+    final item = await widget.elegirDelCatalogo!();
+    if (item == null || !mounted) return;
+    // Si ya está en la lista, suma una unidad en lugar de duplicar la línea.
+    final existente = _filas.where((f) => f.origen.productoId != null && f.origen.productoId == item.productoId).firstOrNull;
+    if (existente != null) {
+      final actual = Formato.parseMonto(existente.cantidad.text) ?? 1;
+      existente.cantidad.text = Formato.cantidad(actual + 1);
+    } else {
+      _filas.add(_Fila(item));
+    }
+    _notificar();
+  }
+
   void _quitar(int i) {
     _filas.removeAt(i).dispose();
     _notificar();
@@ -87,10 +115,16 @@ class _EditorItemsState extends State<EditorItems> {
           runSpacing: Espacio.s,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
+            if (widget.elegirDelCatalogo != null)
+              FilledButton.tonalIcon(
+                onPressed: _agregarDelCatalogo,
+                icon: const Icon(Icons.inventory_2_outlined),
+                label: const Text('Del catálogo'),
+              ),
             OutlinedButton.icon(
               onPressed: _agregar,
               icon: const Icon(Icons.add_rounded),
-              label: const Text('Agregar ítem'),
+              label: const Text('Ítem libre'),
             ),
             for (final s in widget.sugerencias)
               ActionChip(label: Text(s), avatar: const Icon(Icons.add_rounded, size: 16), onPressed: () => _agregar(s)),
@@ -129,7 +163,13 @@ class _FilaItem extends StatelessWidget {
     final descripcion = TextFormField(
       controller: fila.descripcion,
       textCapitalization: TextCapitalization.sentences,
-      decoration: const InputDecoration(labelText: 'Descripción', isDense: true),
+      decoration: InputDecoration(
+        labelText: 'Descripción',
+        isDense: true,
+        prefixIcon: fila.origen.delCatalogo
+            ? Tooltip(message: 'Del catálogo: descuenta stock', child: Icon(Icons.inventory_2_outlined, size: 18, color: context.esquema.primary))
+            : null,
+      ),
       onChanged: (_) => onCambio(),
       validator: (v) => (v == null || v.trim().isEmpty) ? 'Completá la descripción' : null,
     );

@@ -1,14 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/utils/busqueda.dart';
+import '../../core/utils/formato.dart';
 import '../db.dart';
 import '../models/orden.dart';
 import '../models/presupuesto.dart';
+import '../models/producto.dart';
 import 'ordenes_repository.dart';
+import 'productos_repository.dart';
 
 class PresupuestosRepository {
-  PresupuestosRepository(this._db);
+  PresupuestosRepository(this._db, this._productos);
   final Db _db;
+  final ProductosRepository _productos;
 
   static const claveContador = 'presupuestos';
 
@@ -73,6 +77,8 @@ class PresupuestosRepository {
         throw const ErrorDeNegocio('Este presupuesto ya fue convertido en trabajo.');
       }
       final numero = await _db.siguienteNumero(tx, OrdenesRepository.claveContador);
+      final deltas = CalculoStock.diferencia(const [], actual.items);
+      final productos = await _productos.leerParaStock(tx, deltas.keys);
       final ordenRef = _db.ordenes.doc();
       final orden = Orden(
         id: ordenRef.id,
@@ -88,6 +94,8 @@ class PresupuestosRepository {
       tx.set(ordenRef, orden.toMap());
       tx.update(presRef, {'estado': EstadoPresupuesto.aprobado.valor, 'ordenId': ordenRef.id});
       _db.guardarNumero(tx, OrdenesRepository.claveContador, numero);
+      _productos.aplicarStock(tx, deltas, productos,
+          motivo: MotivoStock.trabajo, referencia: 'Trabajo N° ${Formato.numeroComprobante(numero)}');
       return orden;
     });
   }

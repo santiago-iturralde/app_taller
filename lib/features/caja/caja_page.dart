@@ -7,7 +7,7 @@ import '../../core/widgets/campos.dart';
 import '../../core/widgets/componentes.dart';
 import '../../core/widgets/feedback.dart';
 import '../../data/models/caja.dart';
-import 'cobro_form.dart';
+import 'venta_form.dart';
 import 'gasto_form.dart';
 import 'widgets_caja.dart';
 
@@ -47,9 +47,9 @@ class _CajaPageState extends State<CajaPage> with SingleTickerProviderStateMixin
       ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'fab-caja',
-        onPressed: () => abrirFormulario(context, esCobros ? const CobroForm() : const GastoForm()),
+        onPressed: () => esCobros ? nuevoIngreso(context) : abrirFormulario(context, const GastoForm()),
         icon: Icon(esCobros ? Icons.add_card_rounded : Icons.remove_circle_outline_rounded),
-        label: Text(esCobros ? 'Nuevo cobro' : 'Nuevo gasto'),
+        label: Text(esCobros ? 'Nuevo ingreso' : 'Nuevo gasto'),
       ),
       body: ContenidoCentrado(
         anchoMaximo: 860,

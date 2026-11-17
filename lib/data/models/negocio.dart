@@ -42,6 +42,7 @@ abstract final class PlantillasMensaje {
   static const listo = 'listo';
   static const recibido = 'recibido';
   static const presupuesto = 'presupuesto';
+  static const recordatorio = 'recordatorio';
 
   static const porDefecto = {
     recibido: 'Hola {cliente}! Te confirmamos que recibimos tu {equipo} en {negocio}. '
@@ -50,6 +51,8 @@ abstract final class PlantillasMensaje {
         'Total: {total}. Saldo a pagar: {saldo}. ¡Te esperamos!',
     presupuesto: 'Hola {cliente}! Te pasamos el presupuesto N° {numero} de {negocio} por {total}. '
         'Cualquier consulta, escribinos.',
+    recordatorio: 'Hola {cliente}! Te escribimos de {negocio}: a tu {equipo} le toca el próximo service {proximo}. '
+        '¿Querés que coordinemos un turno?',
   };
 
   static const variables = {
@@ -59,12 +62,14 @@ abstract final class PlantillasMensaje {
     '{total}': 'Importe total',
     '{saldo}': 'Saldo pendiente',
     '{negocio}': 'Nombre de tu negocio',
+    '{proximo}': 'Fecha o km del próximo service',
   };
 
   static const etiquetas = {
     recibido: 'Al recibir un trabajo',
     listo: 'Trabajo listo para retirar',
     presupuesto: 'Envío de presupuesto',
+    recordatorio: 'Recordatorio de service',
   };
 }
 

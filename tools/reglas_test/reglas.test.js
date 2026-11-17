@@ -190,6 +190,37 @@ describe('Cobros y numeración', () => {
   });
 });
 
+describe('Catálogo y stock', () => {
+  const producto = { nombre: 'Aceite 10W40', precio: 9000, stock: 10, tipo: 'producto' };
+
+  beforeEach(() => crearNegocio(ANA));
+
+  test('el miembro crea productos y mueve stock', async () => {
+    const db = dbDe(ANA);
+    await assertSucceeds(setDoc(doc(db, `negocios/${ANA}/productos/p1`), producto));
+    await assertSucceeds(updateDoc(doc(db, `negocios/${ANA}/productos/p1`), { stock: 6 }));
+    await assertSucceeds(setDoc(doc(db, `negocios/${ANA}/movimientosStock/m1`), { productoId: 'p1', cantidad: -4 }));
+  });
+
+  test('producto sin nombre o con precio negativo se rechaza', async () => {
+    const db = dbDe(ANA);
+    await assertFails(setDoc(doc(db, `negocios/${ANA}/productos/p2`), { ...producto, nombre: '' }));
+    await assertFails(setDoc(doc(db, `negocios/${ANA}/productos/p3`), { ...producto, precio: -1 }));
+  });
+
+  test('el historial de stock no se puede editar ni borrar', async () => {
+    await comoAdmin((db) => setDoc(doc(db, `negocios/${ANA}/movimientosStock/m1`), { productoId: 'p1', cantidad: 5 }));
+    const ref = doc(dbDe(ANA), `negocios/${ANA}/movimientosStock/m1`);
+    await assertFails(updateDoc(ref, { cantidad: 500 }));
+    await assertFails(deleteDoc(ref));
+  });
+
+  test('otro negocio no ve el catálogo', async () => {
+    await comoAdmin((db) => setDoc(doc(db, `negocios/${ANA}/productos/p1`), producto));
+    await assertFails(getDoc(doc(dbDe(BETO), `negocios/${ANA}/productos/p1`)));
+  });
+});
+
 describe('Perfil de usuario y sistema anterior', () => {
   test('el usuario no puede marcarse premium en el esquema viejo', async () => {
     const db = dbDe(ANA);

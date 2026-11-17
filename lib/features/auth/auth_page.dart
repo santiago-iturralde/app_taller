@@ -243,7 +243,7 @@ class _PanelMarca extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [Color(0xFF1A36B0), Color(0xFF2346D8), Color(0xFF3F64F0)],
+          colors: [Paleta.navy950, Paleta.navy800, Color(0xFF1A3A8F)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),

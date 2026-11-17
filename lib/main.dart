@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import 'app/app_info.dart';
 import 'app/arranque.dart';
+import 'app/preferencias.dart';
 import 'app/sesion.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
@@ -21,7 +22,7 @@ Future<void> main() async {
 
   if (_usarEmuladores) {
     // flutter run -d chrome --dart-define=EMULADORES=true
-    // (antes: firebase emulators:start --only auth,firestore)
+    // (antes, en otra terminal: firebase emulators:start --only "auth,firestore")
     await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
     FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
   } else {
@@ -32,27 +33,34 @@ Future<void> main() async {
   Intl.defaultLocale = 'es_AR';
   await initializeDateFormatting('es_AR');
 
-  runApp(App(controller: SesionController()));
+  runApp(App(controller: SesionController(), preferencias: await Preferencias.cargar()));
 }
 
 class App extends StatelessWidget {
-  const App({super.key, required this.controller});
+  const App({super.key, required this.controller, required this.preferencias});
   final SesionController controller;
+  final Preferencias preferencias;
 
   @override
   Widget build(BuildContext context) {
-    return SesionScope(
-      controller: controller,
-      child: MaterialApp(
-        title: AppInfo.nombre,
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.claro,
-        darkTheme: AppTheme.oscuro,
-        themeMode: ThemeMode.system,
-        locale: const Locale('es', 'AR'),
-        supportedLocales: const [Locale('es', 'AR'), Locale('es')],
-        localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        home: const Arranque(),
+    return PreferenciasScope(
+      preferencias: preferencias,
+      child: SesionScope(
+        controller: controller,
+        child: ListenableBuilder(
+          listenable: preferencias,
+          builder: (context, _) => MaterialApp(
+            title: AppInfo.nombre,
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.claro,
+            darkTheme: AppTheme.oscuro,
+            themeMode: preferencias.tema,
+            locale: const Locale('es', 'AR'),
+            supportedLocales: const [Locale('es', 'AR'), Locale('es')],
+            localizationsDelegates: GlobalMaterialLocalizations.delegates,
+            home: const Arranque(),
+          ),
+        ),
       ),
     );
   }

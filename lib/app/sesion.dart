@@ -10,6 +10,7 @@ import '../data/repositories/clientes_repository.dart';
 import '../data/repositories/negocio_repository.dart';
 import '../data/repositories/ordenes_repository.dart';
 import '../data/repositories/presupuestos_repository.dart';
+import '../data/repositories/productos_repository.dart';
 
 /// Todo lo que una pantalla necesita saber del usuario y su negocio.
 ///
@@ -27,20 +28,23 @@ class Sesion {
     required this.presupuestos,
     required this.caja,
     required this.negocioRepo,
+    required this.productos,
   });
 
   factory Sesion.crear({required User usuario, required Negocio negocio, required RolMiembro rol}) {
     final db = Db(negocio.id);
+    final productos = ProductosRepository(db);
     return Sesion._(
       usuario: usuario,
       negocio: negocio,
       rol: rol,
       db: db,
       clientes: ClientesRepository(db),
-      ordenes: OrdenesRepository(db),
-      presupuestos: PresupuestosRepository(db),
-      caja: CajaRepository(db),
+      ordenes: OrdenesRepository(db, productos),
+      presupuestos: PresupuestosRepository(db, productos),
+      caja: CajaRepository(db, productos),
       negocioRepo: NegocioRepository(db),
+      productos: productos,
     );
   }
 
@@ -53,6 +57,7 @@ class Sesion {
   final PresupuestosRepository presupuestos;
   final CajaRepository caja;
   final NegocioRepository negocioRepo;
+  final ProductosRepository productos;
 
   Sesion _conNegocio(Negocio n) => Sesion._(
         usuario: usuario,
@@ -64,6 +69,7 @@ class Sesion {
         presupuestos: presupuestos,
         caja: caja,
         negocioRepo: negocioRepo,
+        productos: productos,
       );
 
   static Sesion of(BuildContext context) {

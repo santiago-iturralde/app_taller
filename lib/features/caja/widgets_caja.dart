@@ -25,7 +25,8 @@ Future<void> anularPago(BuildContext context, Pago pago) async {
     context,
     titulo: 'Anular cobro',
     mensaje: 'El recibo N° ${Formato.numeroComprobante(pago.numero)} por ${Formato.moneda(pago.monto)} quedará anulado'
-        '${pago.ordenId != null ? ' y se descontará de lo cobrado en el trabajo' : ''}. '
+        '${pago.ordenId != null ? ' y se descontará de lo cobrado en el trabajo' : ''}'
+        '${pago.esVenta ? ' y los productos vuelven al stock' : ''}. '
         'El número no se reutiliza.',
     confirmar: 'Anular',
     peligroso: true,
@@ -53,7 +54,7 @@ class FilaPago extends StatelessWidget {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: Espacio.l),
       leading: IconoTile(
-        p.medio.icono,
+        p.esVenta ? Icons.shopping_bag_outlined : p.medio.icono,
         tamanio: 38,
         color: p.anulado ? context.colores.neutro : context.colores.exito,
         fondo: p.anulado ? context.colores.neutroSuave : context.colores.exitoSuave,

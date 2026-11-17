@@ -10,8 +10,10 @@ import '../features/clientes/clientes_page.dart';
 import '../features/inicio/inicio_page.dart';
 import '../features/planes/planes_page.dart';
 import '../features/presupuestos/presupuestos_page.dart';
+import '../features/productos/productos_page.dart';
 import '../features/reportes/reportes_page.dart';
 import '../features/trabajos/trabajos_page.dart';
+import 'preferencias.dart';
 import 'sesion.dart';
 
 enum _Seccion {
@@ -19,6 +21,7 @@ enum _Seccion {
   trabajos('Trabajos', Icons.build_outlined, Icons.build_rounded),
   clientes('Clientes', Icons.people_alt_outlined, Icons.people_alt_rounded),
   presupuestos('Presupuestos', Icons.request_quote_outlined, Icons.request_quote_rounded),
+  productos('Productos', Icons.inventory_2_outlined, Icons.inventory_2_rounded),
   caja('Caja', Icons.point_of_sale_outlined, Icons.point_of_sale_rounded),
   reportes('Reportes', Icons.insights_outlined, Icons.insights_rounded),
   ajustes('Ajustes', Icons.settings_outlined, Icons.settings_rounded);
@@ -29,7 +32,8 @@ enum _Seccion {
   final IconData iconoActivo;
 
   /// Secciones de la barra inferior en celular (el resto va en "Más").
-  static const movil = [inicio, trabajos, clientes, presupuestos];
+  static const movil = [inicio, trabajos, clientes, caja];
+  static const masMovil = [presupuestos, productos, reportes, ajustes];
 }
 
 /// Estructura principal: barra lateral en escritorio, barra inferior en
@@ -55,6 +59,7 @@ class _ShellState extends State<Shell> {
         _Seccion.trabajos => TrabajosPage(key: ValueKey(_filtroTrabajos), filtroInicial: _filtroTrabajos),
         _Seccion.clientes => const ClientesPage(),
         _Seccion.presupuestos => const PresupuestosPage(),
+        _Seccion.productos => const ProductosPage(),
         _Seccion.caja => const CajaPage(),
         _Seccion.reportes => const ReportesPage(),
         _Seccion.ajustes => const AjustesPage(),
@@ -74,7 +79,6 @@ class _ShellState extends State<Shell> {
         body: Row(
           children: [
             _BarraLateral(actual: _actual, onSeleccionar: _seleccionar),
-            VerticalDivider(width: 1, color: context.colores.borde),
             Expanded(child: contenido),
           ],
         ),
@@ -84,20 +88,23 @@ class _ShellState extends State<Shell> {
     final indice = _Seccion.movil.indexOf(_actual);
     return Scaffold(
       body: contenido,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: indice < 0 ? _Seccion.movil.length : indice,
-        onDestinationSelected: (i) {
-          if (i == _Seccion.movil.length) {
-            _mostrarMas(context);
-          } else {
-            _seleccionar(_Seccion.movil[i]);
-          }
-        },
-        destinations: [
-          for (final s in _Seccion.movil)
-            NavigationDestination(icon: Icon(s.icono), selectedIcon: Icon(s.iconoActivo), label: s.titulo),
-          const NavigationDestination(icon: Icon(Icons.menu_rounded), label: 'Más'),
-        ],
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(border: Border(top: BorderSide(color: context.colores.borde))),
+        child: NavigationBar(
+          selectedIndex: indice < 0 ? _Seccion.movil.length : indice,
+          onDestinationSelected: (i) {
+            if (i == _Seccion.movil.length) {
+              _mostrarMas(context);
+            } else {
+              _seleccionar(_Seccion.movil[i]);
+            }
+          },
+          destinations: [
+            for (final s in _Seccion.movil)
+              NavigationDestination(icon: Icon(s.icono), selectedIcon: Icon(s.iconoActivo), label: s.titulo),
+            const NavigationDestination(icon: Icon(Icons.menu_rounded), label: 'Más'),
+          ],
+        ),
       ),
     );
   }
@@ -111,16 +118,21 @@ class _ShellState extends State<Shell> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            for (final s in [_Seccion.caja, _Seccion.reportes, _Seccion.ajustes])
+            for (final s in _Seccion.masMovil)
               ListTile(
                 leading: Icon(s.icono),
                 title: Text(s.titulo),
+                selected: s == _actual,
                 trailing: (s == _Seccion.reportes && !negocio.esPro) ? const DistintivoPro() : null,
                 onTap: () {
                   Navigator.pop(sheet);
                   _seleccionar(s);
                 },
               ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: Espacio.l, vertical: Espacio.s),
+              child: SelectorTema(),
+            ),
             if (!negocio.esPro)
               ListTile(
                 leading: Icon(Icons.workspace_premium_rounded, color: context.colores.pro),
@@ -155,9 +167,16 @@ class _BarraLateral extends StatelessWidget {
   Widget build(BuildContext context) {
     final sesion = Sesion.of(context);
     final negocio = sesion.negocio;
+    final c = context.colores;
+    final prefs = PreferenciasScope.of(context);
+    final oscuro = context.esOscuro;
+
     return Container(
-      width: 248,
-      color: context.esquema.surface,
+      width: 252,
+      decoration: BoxDecoration(
+        color: c.lateralFondo,
+        border: Border(right: BorderSide(color: c.lateralBorde)),
+      ),
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -165,14 +184,31 @@ class _BarraLateral extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.xl, Espacio.l, Espacio.l),
               child: Row(children: [
-                IconoTile(negocio.rubro.icono, tamanio: 40),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Paleta.azul500, Paleta.azul700],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(Radios.m),
+                  ),
+                  child: Icon(negocio.rubro.icono, color: Colors.white, size: 22),
+                ),
                 const SizedBox(width: Espacio.m),
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(negocio.nombre, style: context.textos.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(
+                      negocio.nombre,
+                      style: context.textos.titleSmall?.copyWith(color: c.lateralTexto),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     Text(
                       negocio.esPro ? 'Plan PRO' : 'Plan Gratis',
-                      style: context.textos.bodySmall?.copyWith(color: context.esquema.onSurfaceVariant),
+                      style: context.textos.bodySmall?.copyWith(color: c.lateralTextoSuave),
                     ),
                   ]),
                 ),
@@ -181,47 +217,86 @@ class _BarraLateral extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Espacio.m),
               child: FilledButton.icon(
+                style: FilledButton.styleFrom(backgroundColor: Paleta.azul500, foregroundColor: Colors.white),
                 onPressed: () => nuevoTrabajo(context),
                 icon: const Icon(Icons.add_rounded),
                 label: const Text('Nuevo trabajo'),
               ),
             ),
             const SizedBox(height: Espacio.l),
-            for (final s in _Seccion.values.where((s) => s != _Seccion.ajustes))
-              _Item(
-                seccion: s,
-                activo: s == actual,
-                onTap: () => onSeleccionar(s),
-                extra: (s == _Seccion.reportes && !negocio.esPro) ? const DistintivoPro() : null,
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  for (final s in _Seccion.values.where((s) => s != _Seccion.ajustes))
+                    _Item(
+                      seccion: s,
+                      activo: s == actual,
+                      onTap: () => onSeleccionar(s),
+                      extra: (s == _Seccion.reportes && !negocio.esPro) ? const DistintivoPro() : null,
+                    ),
+                ],
               ),
-            const Spacer(),
+            ),
             if (!negocio.esPro)
               Padding(
                 padding: const EdgeInsets.all(Espacio.m),
-                child: AppCard(
-                  color: context.colores.proSuave,
-                  onTap: () => abrirPagina(context, const PlanesPage()),
-                  child: Row(children: [
-                    Icon(Icons.workspace_premium_rounded, color: context.colores.pro),
-                    const SizedBox(width: Espacio.s),
-                    const Expanded(child: Text('Pasate a PRO', style: TextStyle(fontWeight: FontWeight.w700))),
-                    const Icon(Icons.chevron_right_rounded, size: 18),
-                  ]),
+                child: Material(
+                  color: const Color(0x1FFBBF24),
+                  borderRadius: BorderRadius.circular(Radios.m),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(Radios.m),
+                    onTap: () => abrirPagina(context, const PlanesPage()),
+                    child: Padding(
+                      padding: const EdgeInsets.all(Espacio.m),
+                      child: Row(children: [
+                        const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFBBF24)),
+                        const SizedBox(width: Espacio.s),
+                        Expanded(
+                          child: Text('Pasate a PRO',
+                              style: TextStyle(fontWeight: FontWeight.w700, color: c.lateralTexto)),
+                        ),
+                        Icon(Icons.chevron_right_rounded, size: 18, color: c.lateralTextoSuave),
+                      ]),
+                    ),
+                  ),
                 ),
               ),
             _Item(seccion: _Seccion.ajustes, activo: actual == _Seccion.ajustes, onTap: () => onSeleccionar(_Seccion.ajustes)),
+            Divider(color: c.lateralBorde, height: Espacio.l),
             Padding(
-              padding: const EdgeInsets.fromLTRB(Espacio.m, 0, Espacio.m, Espacio.m),
-              child: ListTile(
-                dense: true,
-                leading: Iniciales((sesion.usuario.email ?? '?').substring(0, 1).toUpperCase(), radio: 14),
-                title: Text(sesion.usuario.email ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
-                trailing: IconButton(
+              padding: const EdgeInsets.fromLTRB(Espacio.l, 0, Espacio.s, Espacio.m),
+              child: Row(children: [
+                CircleAvatar(
+                  radius: 14,
+                  backgroundColor: Paleta.azul500.withValues(alpha: 0.25),
+                  child: Text(
+                    (sesion.usuario.email ?? '?').substring(0, 1).toUpperCase(),
+                    style: const TextStyle(color: Paleta.azul300, fontWeight: FontWeight.w700, fontSize: 12),
+                  ),
+                ),
+                const SizedBox(width: Espacio.s),
+                Expanded(
+                  child: Text(
+                    sesion.usuario.email ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.textos.bodySmall?.copyWith(color: c.lateralTextoSuave),
+                  ),
+                ),
+                IconButton(
+                  tooltip: oscuro ? 'Modo claro' : 'Modo oscuro',
+                  color: c.lateralTextoSuave,
+                  icon: Icon(oscuro ? Icons.light_mode_outlined : Icons.dark_mode_outlined, size: 20),
+                  onPressed: () => prefs.cambiarTema(oscuro ? ThemeMode.light : ThemeMode.dark),
+                ),
+                IconButton(
                   tooltip: 'Cerrar sesión',
+                  color: c.lateralTextoSuave,
                   icon: const Icon(Icons.logout_rounded, size: 20),
                   onPressed: () => cerrarSesion(context),
                 ),
-              ),
+              ]),
             ),
           ],
         ),
@@ -239,14 +314,16 @@ class _Item extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = activo ? context.esquema.primary : context.esquema.onSurfaceVariant;
+    final c = context.colores;
+    final color = activo ? Paleta.azul300 : c.lateralTextoSuave;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: Espacio.m, vertical: 2),
       child: Material(
-        color: activo ? context.esquema.primary.withValues(alpha: 0.10) : Colors.transparent,
+        color: activo ? c.lateralActivo : Colors.transparent,
         borderRadius: BorderRadius.circular(Radios.m),
         child: InkWell(
           borderRadius: BorderRadius.circular(Radios.m),
+          hoverColor: Colors.white.withValues(alpha: 0.05),
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: Espacio.m, vertical: 11),
@@ -257,7 +334,7 @@ class _Item extends StatelessWidget {
                 child: Text(
                   seccion.titulo,
                   style: context.textos.bodyMedium?.copyWith(
-                    color: activo ? context.esquema.primary : context.esquema.onSurface,
+                    color: activo ? Colors.white : c.lateralTexto,
                     fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),

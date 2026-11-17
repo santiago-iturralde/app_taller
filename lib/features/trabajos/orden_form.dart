@@ -11,6 +11,7 @@ import '../../data/models/cliente.dart';
 import '../../data/models/comunes.dart';
 import '../../data/models/orden.dart';
 import '../clientes/selector_cliente.dart';
+import '../productos/productos_page.dart';
 
 /// Alta y edición de trabajos. Devuelve la [Orden] guardada.
 class OrdenForm extends StatefulWidget {
@@ -34,6 +35,10 @@ class _OrdenFormState extends State<OrdenForm> {
   );
   late final _problema = TextEditingController(text: _o?.problema);
   late final _notas = TextEditingController(text: _o?.notas);
+  late final _proximoKm = TextEditingController(
+    text: _o?.proximoServiceKm == null ? '' : Formato.cantidad(_o!.proximoServiceKm!),
+  );
+  late DateTime? _proximaFecha = _o?.proximoServiceFecha;
 
   late Cliente? _cliente = widget.clienteInicial ??
       (_o == null
@@ -46,7 +51,7 @@ class _OrdenFormState extends State<OrdenForm> {
 
   @override
   void dispose() {
-    for (final c in [_equipo, _identificador, _km, _problema, _notas]) {
+    for (final c in [_equipo, _identificador, _km, _problema, _notas, _proximoKm]) {
       c.dispose();
     }
     super.dispose();
@@ -58,6 +63,8 @@ class _OrdenFormState extends State<OrdenForm> {
     final repo = Sesion.of(context).ordenes;
     final cliente = _cliente!;
     final km = int.tryParse(_km.text.replaceAll(RegExp(r'\D'), ''));
+    final proximoKm = int.tryParse(_proximoKm.text.replaceAll(RegExp(r'\D'), ''));
+    final cambioProximo = _proximaFecha != _o?.proximoServiceFecha || proximoKm != _o?.proximoServiceKm;
     final datos = (_o ??
             Orden(id: '', numero: 0, clienteId: '', clienteNombre: '', fechaIngreso: DateTime.now()))
         .copyWith(
@@ -71,6 +78,12 @@ class _OrdenFormState extends State<OrdenForm> {
       estado: _estado,
       fechaEstimada: _fechaEstimada,
       limpiarFechaEstimada: _fechaEstimada == null,
+      limpiarProximoService: true,
+    ).copyWith(
+      proximoServiceFecha: _proximaFecha,
+      proximoServiceKm: proximoKm,
+      // Si se reprograma el service, el recordatorio vuelve a quedar pendiente.
+      recordatorioEnviado: cambioProximo ? false : null,
     );
 
     Orden? resultado;
@@ -176,8 +189,43 @@ class _OrdenFormState extends State<OrdenForm> {
         EditorItems(
           inicial: _items,
           sugerencias: rubro.sugerenciasItems,
+          elegirDelCatalogo: () => elegirDelCatalogo(context),
           onCambio: (items) => _items = items,
         ),
+        const GrupoFormulario('Próximo service (opcional)'),
+        Text(
+          'Te lo recordamos en el inicio para que le avises al cliente por WhatsApp.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final (texto, meses) in [('En 3 meses', 3), ('En 6 meses', 6), ('En 1 año', 12)])
+            ActionChip(
+              label: Text(texto),
+              onPressed: () {
+                final base = DateTime.now();
+                setState(() => _proximaFecha = DateTime(base.year, base.month + meses, base.day));
+              },
+            ),
+        ]),
+        const SizedBox(height: 12),
+        FilaCampos(children: [
+          CampoFecha(
+            etiqueta: 'Fecha del próximo service',
+            valor: _proximaFecha,
+            permitirVacio: true,
+            primera: DateTime.now().subtract(const Duration(days: 30)),
+            ultima: DateTime.now().add(const Duration(days: 365 * 3)),
+            onCambio: (f) => setState(() => _proximaFecha = f),
+          ),
+          if (rubro.usaKilometraje)
+            TextFormField(
+              controller: _proximoKm,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
+              decoration: const InputDecoration(labelText: 'O a los', suffixText: 'km'),
+            ),
+        ]),
       ],
     );
   }

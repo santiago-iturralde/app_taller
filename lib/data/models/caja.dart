@@ -35,6 +35,7 @@ class Pago {
     this.ordenNumero,
     this.anulado = false,
     this.excluirDeCaja = false,
+    this.items = const [],
   });
 
   final String id;
@@ -53,7 +54,11 @@ class Pago {
   /// como ingreso (para no duplicar lo cobrado en reparaciones).
   final bool excluirDeCaja;
 
+  /// Detalle de lo vendido (sólo en ventas de mostrador).
+  final List<ItemLinea> items;
+
   bool get cuentaEnCaja => !anulado && !excluirDeCaja;
+  bool get esVenta => items.isNotEmpty;
 
   factory Pago.fromMap(String id, Map<String, dynamic> m) => Pago(
         id: id,
@@ -68,6 +73,7 @@ class Pago {
         ordenNumero: m['ordenNumero'] == null ? null : leerInt(m['ordenNumero']),
         anulado: m['anulado'] == true,
         excluirDeCaja: m['excluirDeCaja'] == true,
+        items: ItemLinea.listaDesde(m['items']),
       );
 
   Map<String, dynamic> toMap() => {
@@ -82,6 +88,7 @@ class Pago {
         'ordenNumero': ordenNumero,
         'anulado': anulado,
         'excluirDeCaja': excluirDeCaja,
+        if (items.isNotEmpty) 'items': items.map((i) => i.toMap()).toList(),
       };
 }
 

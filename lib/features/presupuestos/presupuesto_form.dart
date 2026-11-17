@@ -10,6 +10,7 @@ import '../../data/models/cliente.dart';
 import '../../data/models/comunes.dart';
 import '../../data/models/presupuesto.dart';
 import '../clientes/selector_cliente.dart';
+import '../productos/productos_page.dart';
 
 class PresupuestoForm extends StatefulWidget {
   const PresupuestoForm({super.key, this.presupuesto, this.clienteInicial});
@@ -92,7 +93,12 @@ class _PresupuestoFormState extends State<PresupuestoForm> {
           decoration: InputDecoration(labelText: '${rubro.equipo} (opcional)', hintText: rubro.hintEquipo, prefixIcon: Icon(rubro.icono)),
         ),
         const GrupoFormulario('Detalle'),
-        EditorItems(inicial: _items, sugerencias: rubro.sugerenciasItems, onCambio: (i) => _items = i),
+        EditorItems(
+          inicial: _items,
+          sugerencias: rubro.sugerenciasItems,
+          elegirDelCatalogo: () => elegirDelCatalogo(context),
+          onCambio: (i) => _items = i,
+        ),
         const GrupoFormulario('Condiciones'),
         FilaCampos(children: [
           TextFormField(

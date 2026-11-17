@@ -13,6 +13,7 @@ import '../../data/models/orden.dart';
 import '../caja/cobro_form.dart';
 import '../caja/widgets_caja.dart';
 import '../clientes/cliente_detalle_page.dart';
+import '../inicio/recordatorios.dart';
 import 'orden_form.dart';
 import 'widgets_orden.dart';
 
@@ -154,7 +155,12 @@ class _Detalle extends StatelessWidget {
         ),
       ),
     ];
-    final lateral = [_Importe(orden: orden), const SizedBox(height: Espacio.m), _Cobros(orden: orden)];
+    final lateral = [
+      _Importe(orden: orden),
+      if (orden.tieneProximoService) ...[const SizedBox(height: Espacio.m), _ProximoService(orden: orden)],
+      const SizedBox(height: Espacio.m),
+      _Cobros(orden: orden),
+    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -482,6 +488,36 @@ class _Cobros extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _ProximoService extends StatelessWidget {
+  const _ProximoService({required this.orden});
+  final Orden orden;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(children: [
+          Icon(Icons.event_repeat_rounded, color: context.esquema.primary),
+          const SizedBox(width: Espacio.s),
+          Expanded(child: Text('Próximo service', style: context.textos.titleSmall)),
+          if (orden.recordatorioEnviado)
+            Etiqueta(texto: 'Avisado', color: context.colores.exito, fondo: context.colores.exitoSuave, icono: Icons.done_rounded, compacta: true),
+        ]),
+        const SizedBox(height: Espacio.s),
+        Text(Formato.capitalizar(describirProximoService(orden))),
+        if (orden.clienteTelefono.isNotEmpty) ...[
+          const SizedBox(height: Espacio.m),
+          OutlinedButton.icon(
+            onPressed: () => enviarRecordatorio(context, orden),
+            icon: const Icon(Icons.chat_outlined),
+            label: Text(orden.recordatorioEnviado ? 'Volver a recordar' : 'Enviar recordatorio'),
+          ),
+        ],
+      ]),
     );
   }
 }

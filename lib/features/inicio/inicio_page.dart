@@ -9,7 +9,12 @@ import '../../data/models/caja.dart';
 import '../../data/models/negocio.dart';
 import '../../data/models/orden.dart';
 import '../caja/caja_page.dart';
-import '../caja/cobro_form.dart';
+import '../caja/venta_form.dart';
+import '../productos/productos_page.dart';
+import '../productos/producto_detalle_page.dart';
+import '../productos/widgets_producto.dart';
+import '../../data/models/producto.dart';
+import 'recordatorios.dart';
 import '../caja/gasto_form.dart';
 import '../clientes/cliente_detalle_page.dart';
 import '../clientes/cliente_form.dart';
@@ -64,6 +69,8 @@ class InicioPage extends StatelessWidget {
                       const SizedBox(height: 200, child: Cargando())
                     else ...[
                       _Indicadores(activas: activas, irATrabajos: irATrabajos),
+                      const SeccionRecordatorios(),
+                      const _StockBajo(),
                       _ListaSeccion(
                         titulo: 'Listos para retirar',
                         ordenes: activas.where((o) => o.estado == EstadoOrden.listo).toList(),
@@ -111,7 +118,7 @@ class _AccionesRapidas extends StatelessWidget {
         }
       ),
       (Icons.request_quote_outlined, 'Presupuesto', () => nuevoPresupuesto(context)),
-      (Icons.add_card_rounded, 'Cobro', () => abrirFormulario<Pago>(context, const CobroForm())),
+      (Icons.shopping_bag_outlined, 'Venta / cobro', () => nuevoIngreso(context)),
       (Icons.remove_circle_outline_rounded, 'Gasto', () => abrirFormulario(context, const GastoForm())),
     ];
     return SizedBox(
@@ -282,6 +289,45 @@ class _ListaSeccion extends StatelessWidget {
             ],
           ),
       ],
+    );
+  }
+}
+
+/// Aviso de productos con stock bajo (sólo aparece si hay alguno).
+class _StockBajo extends StatelessWidget {
+  const _StockBajo();
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Producto>>(
+      stream: Sesion.of(context).productos.conStockBajo(),
+      builder: (context, s) {
+        final lista = s.data ?? const <Producto>[];
+        if (lista.isEmpty) return const SizedBox.shrink();
+        lista.sort((a, b) => a.stock.compareTo(b.stock));
+        final visibles = lista.take(6).toList();
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Seccion(
+            'Stock bajo (${lista.length})',
+            accion: lista.length > visibles.length
+                ? TextButton(onPressed: () => abrirPagina(context, const ProductosPage()), child: const Text('Ver todos'))
+                : null,
+          ),
+          AppCard(
+            padding: const EdgeInsets.symmetric(vertical: Espacio.s),
+            child: Column(children: [
+              for (final p in visibles)
+                ListTile(
+                  leading: Icon(Icons.warning_amber_rounded, color: context.colores.alerta),
+                  title: Text(p.nombre, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  subtitle: p.stockMinimo > 0 ? Text('Mínimo: ${Formato.cantidad(p.stockMinimo)}') : null,
+                  trailing: EtiquetaStock(p),
+                  onTap: () => abrirPagina(context, ProductoDetallePage(productoId: p.id)),
+                ),
+            ]),
+          ),
+        ]);
+      },
     );
   }
 }

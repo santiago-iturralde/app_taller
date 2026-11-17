@@ -1,0 +1,8 @@
+{
+  "emulators": {
+    "firestore": { "port": 8181 },
+    "ui": { "enabled": false },
+    "hub": { "port": 4410 },
+    "logging": { "port": 4510 }
+  }
+}

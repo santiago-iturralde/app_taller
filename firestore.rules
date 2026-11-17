@@ -123,6 +123,25 @@ service cloud.firestore {
           && textoValido('descripcion', 300);
       }
 
+      match /productos/{id} {
+        allow read, delete: if miembro(negocioId);
+        allow create, update: if miembro(negocioId)
+          && textoValido('nombre', 150)
+          && request.resource.data.nombre.size() > 0
+          && request.resource.data.precio is number
+          && request.resource.data.precio >= 0
+          && request.resource.data.stock is number;
+      }
+
+      // Historial de stock: sólo se agregan registros (auditoría).
+      match /movimientosStock/{id} {
+        allow read: if miembro(negocioId);
+        allow create: if miembro(negocioId)
+          && request.resource.data.productoId is string
+          && request.resource.data.cantidad is number;
+        allow update, delete: if false;
+      }
+
       // Contadores de numeración: sólo pueden avanzar.
       match /meta/contadores {
         allow read: if miembro(negocioId);

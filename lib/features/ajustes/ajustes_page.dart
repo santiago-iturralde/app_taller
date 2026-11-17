@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../app/app_info.dart';
+import '../../app/preferencias.dart';
 import '../../app/sesion.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/componentes.dart';
@@ -35,6 +36,8 @@ class AjustesPage extends StatelessWidget {
                 _DatosNegocio(negocio: sesion.negocio, habilitado: puedeEditar),
                 const Seccion('Mensajes de WhatsApp'),
                 _Plantillas(negocio: sesion.negocio, habilitado: puedeEditar),
+                const Seccion('Apariencia'),
+                const AppCard(child: Align(alignment: Alignment.centerLeft, child: SelectorTema())),
                 const Seccion('Plan'),
                 AppCard(
                   onTap: () => abrirPagina(context, const PlanesPage()),

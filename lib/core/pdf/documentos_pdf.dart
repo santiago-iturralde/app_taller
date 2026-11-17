@@ -131,6 +131,7 @@ class DocumentosPdf {
           _lineaRecibo('La suma de', Formato.moneda(p.monto), destacado: true),
           _lineaRecibo('En concepto de', p.concepto.isEmpty ? '-' : p.concepto),
           _lineaRecibo('Forma de pago', p.medio.etiqueta),
+          if (p.esVenta) ...[pw.SizedBox(height: 6), _tablaItems(p.items)],
           pw.SizedBox(height: 36),
           pw.Align(alignment: pw.Alignment.centerRight, child: _lineaFirma('Firma y aclaración')),
         ],

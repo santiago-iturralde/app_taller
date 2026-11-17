@@ -1,12 +1,16 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/utils/busqueda.dart';
+import '../../core/utils/formato.dart';
 import '../db.dart';
 import '../models/orden.dart';
+import '../models/producto.dart';
+import 'productos_repository.dart';
 
 class OrdenesRepository {
-  OrdenesRepository(this._db);
+  OrdenesRepository(this._db, this._productos);
   final Db _db;
+  final ProductosRepository _productos;
 
   static const claveContador = 'ordenes';
 
@@ -59,14 +63,32 @@ class OrdenesRepository {
     return _mapear(snap);
   }
 
-  /// Crea el trabajo asignándole el próximo número correlativo.
+  /// Trabajos con próximo service hasta [hasta] cuyo recordatorio todavía
+  /// no se envió.
+  Stream<List<Orden>> recordatoriosPendientes(DateTime hasta) => _db.ordenes
+      .where('recordatorioEnviado', isEqualTo: false)
+      .where('proximoServiceFecha', isLessThanOrEqualTo: hasta)
+      .orderBy('proximoServiceFecha')
+      .snapshots()
+      .map(_mapear);
+
+  Future<void> marcarRecordatorio(String id, {bool enviado = true}) =>
+      _db.ordenes.doc(id).update({'recordatorioEnviado': enviado});
+
+  /// Crea el trabajo con el próximo número correlativo y descuenta del
+  /// stock los productos del catálogo que use.
   Future<Orden> crear(Orden orden) {
     return _db.fs.runTransaction((tx) async {
       final numero = await _db.siguienteNumero(tx, claveContador);
+      final deltas = CalculoStock.diferencia(const [], orden.itemsQueConsumenStock);
+      final productos = await _productos.leerParaStock(tx, deltas.keys);
+
       final ref = _db.ordenes.doc();
       final nueva = Orden.fromMap(ref.id, orden.copyWith(numero: numero).toMap());
       tx.set(ref, nueva.toMap());
       _db.guardarNumero(tx, claveContador, numero);
+      _productos.aplicarStock(tx, deltas, productos,
+          motivo: MotivoStock.trabajo, referencia: 'Trabajo N° ${Formato.numeroComprobante(numero)}');
       return nueva;
     });
   }
@@ -84,23 +106,42 @@ class OrdenesRepository {
         );
       });
 
-  Future<void> eliminar(Orden orden) async {
+  /// Elimina el trabajo y devuelve al stock lo que había consumido.
+  Future<void> eliminar(Orden orden) {
     if (orden.pagado > 0) {
       throw const ErrorDeNegocio(
         'Este trabajo tiene cobros registrados. Anulá los cobros desde Caja '
         'antes de eliminarlo, o marcalo como cancelado.',
       );
     }
-    await _db.ordenes.doc(orden.id).delete();
+    return _db.fs.runTransaction((tx) async {
+      final ref = _db.ordenes.doc(orden.id);
+      final snap = await tx.get(ref);
+      if (!snap.exists) return;
+      final actual = Orden.fromMap(snap.id, snap.data()!);
+      final deltas = CalculoStock.diferencia(actual.itemsQueConsumenStock, const []);
+      final productos = await _productos.leerParaStock(tx, deltas.keys);
+      tx.delete(ref);
+      _productos.aplicarStock(tx, deltas, productos,
+          motivo: MotivoStock.devolucion,
+          referencia: 'Trabajo N° ${Formato.numeroComprobante(actual.numero)} eliminado');
+    });
   }
 
+  /// Aplica un cambio al trabajo dentro de una transacción y ajusta el
+  /// stock según la diferencia de ítems (incluye cancelar / reabrir).
   Future<void> _modificar(String id, Orden Function(Orden actual) cambio) {
     return _db.fs.runTransaction((tx) async {
       final ref = _db.ordenes.doc(id);
       final snap = await tx.get(ref);
       if (!snap.exists) throw const ErrorDeNegocio('El trabajo ya no existe.');
       final actual = Orden.fromMap(snap.id, snap.data()!);
-      tx.set(ref, cambio(actual).toMap());
+      final nueva = cambio(actual);
+      final deltas = CalculoStock.diferencia(actual.itemsQueConsumenStock, nueva.itemsQueConsumenStock);
+      final productos = await _productos.leerParaStock(tx, deltas.keys);
+      tx.set(ref, nueva.toMap());
+      _productos.aplicarStock(tx, deltas, productos,
+          motivo: MotivoStock.trabajo, referencia: 'Trabajo N° ${Formato.numeroComprobante(actual.numero)}');
     });
   }
 }

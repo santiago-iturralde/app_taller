@@ -1,13 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../core/utils/formato.dart';
 import '../db.dart';
 import '../models/caja.dart';
 import '../models/comunes.dart';
 import '../models/orden.dart';
+import '../models/producto.dart';
+import 'productos_repository.dart';
 
 class CajaRepository {
-  CajaRepository(this._db);
+  CajaRepository(this._db, this._productos);
   final Db _db;
+  final ProductosRepository _productos;
 
   static const claveContador = 'pagos';
 
@@ -85,14 +89,53 @@ class CajaRepository {
     });
   }
 
+  /// Venta de mostrador: cobra los ítems y descuenta el stock en una sola
+  /// operación.
+  Future<Pago> registrarVenta({
+    required List<ItemLinea> items,
+    required MedioPago medio,
+    required DateTime fecha,
+    String? clienteId,
+    String clienteNombre = '',
+  }) {
+    final total = ItemLinea.total(items);
+    if (items.isEmpty || total <= 0) throw const ErrorDeNegocio('Agregá al menos un ítem con precio.');
+    return _db.fs.runTransaction((tx) async {
+      final numero = await _db.siguienteNumero(tx, claveContador);
+      final deltas = CalculoStock.diferencia(const [], items);
+      final productos = await _productos.leerParaStock(tx, deltas.keys);
+
+      final ref = _db.pagos.doc();
+      final resumen = items.map((i) => i.cantidad == 1 ? i.descripcion : '${Formato.cantidad(i.cantidad)} × ${i.descripcion}');
+      final pago = Pago(
+        id: ref.id,
+        numero: numero,
+        monto: total,
+        fecha: fecha,
+        medio: medio,
+        concepto: 'Venta: ${resumen.join(', ')}',
+        clienteId: clienteId,
+        clienteNombre: clienteNombre,
+        items: items,
+      );
+      tx.set(ref, pago.toMap());
+      _db.guardarNumero(tx, claveContador, numero);
+      _productos.aplicarStock(tx, deltas, productos,
+          motivo: MotivoStock.venta, referencia: 'Venta - recibo N° ${Formato.numeroComprobante(numero)}');
+      return pago;
+    });
+  }
+
   /// Anula un cobro (no se borra, para mantener la numeración) y descuenta
-  /// el importe del trabajo asociado.
+  /// el importe del trabajo asociado. Si era una venta, devuelve el stock.
   Future<void> anularPago(Pago pago) {
     return _db.fs.runTransaction((tx) async {
       final ref = _db.pagos.doc(pago.id);
       final snap = await tx.get(ref);
       final actual = Pago.fromMap(snap.id, snap.data() ?? const {});
       if (actual.anulado) return;
+      final deltas = CalculoStock.diferencia(actual.items, const []);
+      final productos = await _productos.leerParaStock(tx, deltas.keys);
 
       if (actual.ordenId != null) {
         final ordenRef = _db.ordenes.doc(actual.ordenId);
@@ -104,6 +147,8 @@ class CajaRepository {
         }
       }
       tx.update(ref, {'anulado': true, 'anuladoEn': FieldValue.serverTimestamp()});
+      _productos.aplicarStock(tx, deltas, productos,
+          motivo: MotivoStock.devolucion, referencia: 'Anulación recibo N° ${Formato.numeroComprobante(actual.numero)}');
     });
   }
 

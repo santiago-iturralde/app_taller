@@ -76,6 +76,9 @@ class Orden {
     this.fechaListo,
     this.fechaEntrega,
     this.fechaEstimada,
+    this.proximoServiceFecha,
+    this.proximoServiceKm,
+    this.recordatorioEnviado = false,
   });
 
   final String id;
@@ -95,6 +98,16 @@ class Orden {
   final DateTime? fechaListo;
   final DateTime? fechaEntrega;
   final DateTime? fechaEstimada;
+
+  /// Próximo service o mantenimiento sugerido (para recordarle al cliente).
+  final DateTime? proximoServiceFecha;
+  final int? proximoServiceKm;
+  final bool recordatorioEnviado;
+
+  bool get tieneProximoService => proximoServiceFecha != null || proximoServiceKm != null;
+
+  /// Ítems que efectivamente consumen stock (un trabajo cancelado no consume).
+  List<ItemLinea> get itemsQueConsumenStock => estado == EstadoOrden.cancelado ? const [] : items;
 
   double get total => ItemLinea.total(items);
   double get saldo => redondear((total - pagado).clamp(0, double.infinity).toDouble());
@@ -119,6 +132,9 @@ class Orden {
         fechaListo: leerFecha(m['fechaListo']),
         fechaEntrega: leerFecha(m['fechaEntrega']),
         fechaEstimada: leerFecha(m['fechaEstimada']),
+        proximoServiceFecha: leerFecha(m['proximoServiceFecha']),
+        proximoServiceKm: m['proximoServiceKm'] == null ? null : leerInt(m['proximoServiceKm']),
+        recordatorioEnviado: m['recordatorioEnviado'] == true,
       );
 
   /// Representación para guardar. Incluye campos derivados (`total`,
@@ -141,6 +157,9 @@ class Orden {
         'fechaListo': fechaListo,
         'fechaEntrega': fechaEntrega,
         'fechaEstimada': fechaEstimada,
+        'proximoServiceFecha': proximoServiceFecha,
+        'proximoServiceKm': proximoServiceKm,
+        'recordatorioEnviado': recordatorioEnviado,
         'keywords': Busqueda.keywords([
           clienteNombre,
           equipo.descripcion,
@@ -165,6 +184,10 @@ class Orden {
     DateTime? fechaEntrega,
     DateTime? fechaEstimada,
     bool limpiarFechaEstimada = false,
+    DateTime? proximoServiceFecha,
+    int? proximoServiceKm,
+    bool? recordatorioEnviado,
+    bool limpiarProximoService = false,
   }) =>
       Orden(
         id: id,
@@ -182,5 +205,8 @@ class Orden {
         fechaListo: fechaListo ?? this.fechaListo,
         fechaEntrega: fechaEntrega ?? this.fechaEntrega,
         fechaEstimada: limpiarFechaEstimada ? null : (fechaEstimada ?? this.fechaEstimada),
+        proximoServiceFecha: limpiarProximoService ? null : (proximoServiceFecha ?? this.proximoServiceFecha),
+        proximoServiceKm: limpiarProximoService ? null : (proximoServiceKm ?? this.proximoServiceKm),
+        recordatorioEnviado: recordatorioEnviado ?? this.recordatorioEnviado,
       );
 }

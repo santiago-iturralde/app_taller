@@ -16,10 +16,17 @@ defecto, pero el motor es el mismo para todos.
   ítems con total, señas y cobros parciales, orden de trabajo en PDF, aviso por WhatsApp.
 - **Clientes**: ficha con historial, saldo y contacto directo.
 - **Presupuestos**: PDF, envío por WhatsApp, validez y conversión en trabajo con un clic.
+- **Productos y servicios**: catálogo con precio, costo y margen; stock que se descuenta solo al usarlo
+  en trabajos, presupuestos aprobados o ventas (y vuelve si se cancela o anula), con historial de movimientos
+  y aviso de stock bajo.
+- **Venta de mostrador**: vender sin abrir un trabajo; descuenta stock y genera recibo.
+- **Recordatorios de service**: próximo service por fecha o kilometraje; el inicio muestra a quién avisar
+  y se envía por WhatsApp con un toque.
 - **Caja**: cobros con recibo numerado (se anulan, no se borran) y gastos por categoría.
 - **Reportes (PRO)**: cobrado, gastos, resultado, comparación con el mes anterior, desgloses.
 - **Búsqueda** por nombre, teléfono, documento, patente o número.
-- **Diseño adaptable**: barra lateral en PC, barra inferior en celular, modo oscuro.
+- **Diseño adaptable**: barra lateral en PC, barra inferior en celular; tema azul noche (oscuro),
+  claro o según el sistema.
 
 ## Arquitectura
 
@@ -42,7 +49,8 @@ lib/
 ```
 negocios/{negocioId}                   datos del negocio, rubro y plan
 negocios/{negocioId}/miembros/{uid}    usuarios con acceso y su rol
-negocios/{negocioId}/clientes|ordenes|presupuestos|pagos|gastos
+negocios/{negocioId}/clientes|ordenes|presupuestos|pagos|gastos|productos
+negocios/{negocioId}/movimientosStock  historial de stock (sólo se agregan registros)
 negocios/{negocioId}/meta/contadores   numeración correlativa
 negocios/{negocioId}/meta/branding     logo
 users/{uid}                            a qué negocio pertenece (+ datos del sistema anterior)
@@ -68,7 +76,7 @@ flutter run -d chrome                       # contra el proyecto real
 Para probar sin tocar datos reales, con los emuladores de Firebase:
 
 ```bash
-firebase emulators:start --only auth,firestore
+firebase emulators:start --only "auth,firestore"     # en PowerShell, con comillas
 flutter run -d chrome --dart-define=EMULADORES=true
 ```
 
@@ -77,7 +85,7 @@ flutter run -d chrome --dart-define=EMULADORES=true
 ```bash
 flutter analyze
 flutter test                                # lógica y componentes
-cd tools/reglas_test && npm install && npm test   # reglas de seguridad (requiere Java)
+cd tools/reglas_test && npm install && npm test   # reglas de seguridad (requiere Java; usa el puerto 8181)
 ```
 
 ## Publicar una versión
