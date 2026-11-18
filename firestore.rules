@@ -4,6 +4,14 @@ rules_version = '2';
 //
 // Modelo: cada negocio vive en negocios/{negocioId}. Sólo los miembros
 // (negocios/{id}/miembros/{uid}) pueden leer o escribir sus datos.
+//
+// Roles:
+//   owner     dueño. Todo, incluido gestionar administradores.
+//   admin     todo lo operativo y administrativo, salvo gestionar admins.
+//   empleado  trabaja el día a día (clientes, trabajos, presupuestos,
+//             ventas, cobros) pero no borra, no anula cobros, no ve gastos,
+//             no edita el catálogo ni la configuración.
+//
 // El plan (plan, planVence) y el dueño (ownerUid) NUNCA los modifica la
 // app: se cambian desde la consola o desde un backend con credenciales de
 // administrador (que no pasa por estas reglas).
@@ -13,30 +21,74 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ------------------------------------------------------------ Helpers
+
     function autenticado() {
       return request.auth != null;
     }
 
+    function rutaMiembro(negocioId) {
+      return /databases/$(database)/documents/negocios/$(negocioId)/miembros/$(request.auth.uid);
+    }
+
     function miembro(negocioId) {
-      return autenticado()
-        && exists(/databases/$(database)/documents/negocios/$(negocioId)/miembros/$(request.auth.uid));
+      return autenticado() && exists(rutaMiembro(negocioId));
     }
 
     function rol(negocioId) {
-      return get(/databases/$(database)/documents/negocios/$(negocioId)/miembros/$(request.auth.uid)).data.rol;
+      return get(rutaMiembro(negocioId)).data.rol;
     }
 
     function administra(negocioId) {
       return miembro(negocioId) && rol(negocioId) in ['owner', 'admin'];
     }
 
+    function esDuenio(negocioId) {
+      return miembro(negocioId) && rol(negocioId) == 'owner';
+    }
+
+    function negocioPro(negocioId) {
+      let n = get(/databases/$(database)/documents/negocios/$(negocioId)).data;
+      return n.get('plan', 'free') == 'pro'
+        && (n.get('planVence', null) == null || n.planVence > request.time);
+    }
+
+    function cambios() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
     function cambia(campos) {
-      return request.resource.data.diff(resource.data).affectedKeys().hasAny(campos);
+      return cambios().hasAny(campos);
     }
 
     function textoValido(campo, maximo) {
       return request.resource.data[campo] is string
         && request.resource.data[campo].size() <= maximo;
+    }
+
+    function emailVerificado() {
+      return autenticado()
+        && request.auth.token.email is string
+        && request.auth.token.email_verified == true;
+    }
+
+    function miEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    // Las invitaciones tienen ID determinista "{negocioId}_{email}" para
+    // poder validarlas desde las reglas sin hacer consultas.
+    function rutaInvitacion(negocioId) {
+      return /databases/$(database)/documents/invitaciones/$(negocioId + '_' + miEmail());
+    }
+
+    function invitacionValidaPara(negocioId, rolPedido) {
+      return emailVerificado()
+        && exists(rutaInvitacion(negocioId))
+        && get(rutaInvitacion(negocioId)).data.negocioId == negocioId
+        && get(rutaInvitacion(negocioId)).data.email == miEmail()
+        && get(rutaInvitacion(negocioId)).data.rol == rolPedido
+        && get(rutaInvitacion(negocioId)).data.vence > request.time;
     }
 
     // ------------------------------------------------------------ Negocios
@@ -62,14 +114,38 @@ service cloud.firestore {
       match /miembros/{uid} {
         allow read: if miembro(negocioId);
 
-        // El dueño se registra a sí mismo al crear el negocio.
-        allow create, update: if autenticado()
-          && uid == request.auth.uid
-          && request.resource.data.rol == 'owner'
-          && getAfter(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerUid == request.auth.uid;
+        // Alta:
+        //  a) el dueño se registra a sí mismo al crear el negocio;
+        //  b) un invitado con email verificado acepta su invitación.
+        allow create: if autenticado() && uid == request.auth.uid
+          && request.resource.data.keys().hasOnly(['rol', 'email', 'nombre', 'desde'])
+          && (
+            (request.resource.data.rol == 'owner'
+              && getAfter(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerUid == request.auth.uid)
+            || (request.resource.data.rol in ['admin', 'empleado']
+              && invitacionValidaPara(negocioId, request.resource.data.rol))
+          );
 
-        // El dueño puede quitar a otros miembros (nunca a sí mismo).
-        allow delete: if miembro(negocioId) && rol(negocioId) == 'owner' && uid != request.auth.uid;
+        // Cambios:
+        //  a) el dueño re-escribe su propio registro (reintento de alta);
+        //  b) el dueño cambia el rol de otro miembro entre admin y empleado.
+        allow update: if autenticado() && (
+          (uid == request.auth.uid
+            && request.resource.data.rol == 'owner'
+            && get(/databases/$(database)/documents/negocios/$(negocioId)).data.ownerUid == request.auth.uid)
+          || (esDuenio(negocioId)
+            && uid != request.auth.uid
+            && cambios().hasOnly(['rol'])
+            && request.resource.data.rol in ['admin', 'empleado'])
+        );
+
+        // Bajas: el dueño quita a cualquiera (menos a sí mismo), un admin
+        // quita empleados, y cualquiera que no sea dueño puede irse.
+        allow delete: if autenticado() && resource.data.rol != 'owner' && (
+          esDuenio(negocioId)
+          || (administra(negocioId) && resource.data.rol == 'empleado')
+          || uid == request.auth.uid
+        );
       }
 
       match /clientes/{id} {
@@ -77,7 +153,7 @@ service cloud.firestore {
         allow create, update: if miembro(negocioId)
           && textoValido('nombre', 150)
           && request.resource.data.nombre.size() > 0;
-        allow delete: if miembro(negocioId);
+        allow delete: if administra(negocioId);
       }
 
       match /ordenes/{id} {
@@ -88,7 +164,7 @@ service cloud.firestore {
           && request.resource.data.pagado is number
           && request.resource.data.pagado >= 0;
         // Un trabajo con cobros no se borra: primero se anulan los cobros.
-        allow delete: if miembro(negocioId) && resource.data.get('pagado', 0) == 0;
+        allow delete: if administra(negocioId) && resource.data.get('pagado', 0) == 0;
       }
 
       match /presupuestos/{id} {
@@ -96,49 +172,65 @@ service cloud.firestore {
         allow create, update: if miembro(negocioId)
           && request.resource.data.numero is int
           && request.resource.data.total is number;
-        allow delete: if miembro(negocioId) && resource.data.get('ordenId', null) == null;
+        allow delete: if administra(negocioId) && resource.data.get('ordenId', null) == null;
       }
 
-      // Los cobros tienen numeración correlativa: no se borran ni se editan,
-      // sólo se pueden anular.
+      // Los cobros tienen numeración correlativa: no se borran ni se editan.
+      // Sólo administradores pueden anularlos.
       match /pagos/{id} {
         allow read: if miembro(negocioId);
         allow create: if miembro(negocioId)
           && request.resource.data.numero is int
           && request.resource.data.monto is number
-          && request.resource.data.monto >= 0;
+          && request.resource.data.monto >= 0
+          && request.resource.data.get('anulado', false) == false;
         // Se permite anular, o reescribir sin cambios (reintento de migración).
-        allow update: if miembro(negocioId)
-          && (request.resource.data.diff(resource.data).affectedKeys().size() == 0
-              || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['anulado', 'anuladoEn'])
-                  && request.resource.data.get('anulado', false) == true));
+        allow update: if miembro(negocioId) && (
+          cambios().size() == 0
+          || (administra(negocioId)
+            && cambios().hasOnly(['anulado', 'anuladoEn'])
+            && request.resource.data.anulado == true)
+        );
         allow delete: if false;
       }
 
+      // Los gastos son información del dueño: los empleados no los ven.
       match /gastos/{id} {
-        allow read, delete: if miembro(negocioId);
-        allow create, update: if miembro(negocioId)
+        allow read, delete: if administra(negocioId);
+        allow create, update: if administra(negocioId)
           && request.resource.data.monto is number
           && request.resource.data.monto > 0
           && textoValido('descripcion', 300);
       }
 
+      // Catálogo: lo editan administradores. Un empleado sólo puede mover el
+      // stock (al usar productos en trabajos o ventas).
       match /productos/{id} {
-        allow read, delete: if miembro(negocioId);
-        allow create, update: if miembro(negocioId)
-          && textoValido('nombre', 150)
-          && request.resource.data.nombre.size() > 0
-          && request.resource.data.precio is number
-          && request.resource.data.precio >= 0
-          && request.resource.data.stock is number;
+        allow read: if miembro(negocioId);
+        allow create: if administra(negocioId) && productoValido();
+        allow update: if productoValido() && (
+          administra(negocioId)
+          || (miembro(negocioId) && cambios().hasOnly(['stock', 'stockBajo']))
+        );
+        allow delete: if administra(negocioId);
+
+        function productoValido() {
+          return textoValido('nombre', 150)
+            && request.resource.data.nombre.size() > 0
+            && request.resource.data.precio is number
+            && request.resource.data.precio >= 0
+            && request.resource.data.stock is number;
+        }
       }
 
-      // Historial de stock: sólo se agregan registros (auditoría).
+      // Historial de stock: sólo se agregan registros, firmados por quien
+      // hizo el movimiento (auditoría).
       match /movimientosStock/{id} {
         allow read: if miembro(negocioId);
         allow create: if miembro(negocioId)
           && request.resource.data.productoId is string
-          && request.resource.data.cantidad is number;
+          && request.resource.data.cantidad is number
+          && request.resource.data.usuarioUid == request.auth.uid;
         allow update, delete: if false;
       }
 
@@ -158,6 +250,35 @@ service cloud.firestore {
           && (request.resource.data.get('logoBase64', null) == null
               || request.resource.data.logoBase64.size() < 700000);
       }
+    }
+
+    // --------------------------------------------------------- Invitaciones
+    // ID: "{negocioId}_{email en minúsculas}". Vencen a los 7 días.
+    match /invitaciones/{id} {
+      // Las ve el invitado (con email verificado) y quien administra el negocio.
+      allow read: if (emailVerificado() && resource.data.email == miEmail())
+        || administra(resource.data.negocioId);
+
+      // Invitar es una función PRO. Un admin invita empleados; sólo el
+      // dueño puede invitar administradores.
+      allow create: if administra(request.resource.data.negocioId)
+        && negocioPro(request.resource.data.negocioId)
+        && id == request.resource.data.negocioId + '_' + request.resource.data.email
+        && request.resource.data.email is string
+        && request.resource.data.email == request.resource.data.email.lower()
+        && request.resource.data.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
+        && request.resource.data.rol in ['admin', 'empleado']
+        && (request.resource.data.rol == 'empleado' || esDuenio(request.resource.data.negocioId))
+        && request.resource.data.creadoPor == request.auth.uid
+        && request.resource.data.vence is timestamp
+        && request.resource.data.vence <= request.time + duration.value(8, 'd')
+        && request.resource.data.keys().hasOnly(['negocioId', 'negocioNombre', 'email', 'rol', 'creadoPor', 'creadoEn', 'vence']);
+
+      // La cancela quien administra; la descarta (o la consume al aceptar) el invitado.
+      allow delete: if administra(resource.data.negocioId)
+        || (emailVerificado() && resource.data.email == miEmail());
+
+      allow update: if false;
     }
 
     // ------------------------------------------------------------ Usuarios

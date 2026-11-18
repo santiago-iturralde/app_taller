@@ -122,7 +122,7 @@ class _Detalle extends StatelessWidget {
                 const PopupMenuItem(value: 'rechazar', child: ListTile(leading: Icon(Icons.thumb_down_alt_outlined), title: Text('Marcar como rechazado'))),
               if (p.estado == EstadoPresupuesto.rechazado)
                 const PopupMenuItem(value: 'pendiente', child: ListTile(leading: Icon(Icons.undo_rounded), title: Text('Volver a pendiente'))),
-              if (p.ordenId == null)
+              if (p.ordenId == null && Sesion.of(context).puede(Permiso.eliminarRegistros))
                 const PopupMenuItem(value: 'eliminar', child: ListTile(leading: Icon(Icons.delete_outline), title: Text('Eliminar'))),
             ],
           ),

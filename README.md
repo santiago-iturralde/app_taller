@@ -23,7 +23,9 @@ defecto, pero el motor es el mismo para todos.
 - **Recordatorios de service**: próximo service por fecha o kilometraje; el inicio muestra a quién avisar
   y se envía por WhatsApp con un toque.
 - **Caja**: cobros con recibo numerado (se anulan, no se borran) y gastos por categoría.
-- **Reportes (PRO)**: cobrado, gastos, resultado, comparación con el mes anterior, desgloses.
+- **Reportes (PRO)**: cobrado, gastos, resultado, comparación con el mes anterior, desgloses,
+  lo más vendido, ganancia bruta y margen por producto, inventario valorizado.
+- **Equipo (PRO)**: el dueño invita por email a administradores y empleados, con permisos por rol.
 - **Búsqueda** por nombre, teléfono, documento, patente o número.
 - **Diseño adaptable**: barra lateral en PC, barra inferior en celular; tema azul noche (oscuro),
   claro o según el sistema.
@@ -56,6 +58,21 @@ negocios/{negocioId}/meta/branding     logo
 users/{uid}                            a qué negocio pertenece (+ datos del sistema anterior)
 ```
 
+### Roles
+
+| | Dueño | Administrador | Empleado |
+|---|:-:|:-:|:-:|
+| Clientes, trabajos, presupuestos, ventas y cobros | ✓ | ✓ | ✓ |
+| Ver gastos, reportes y totales de caja | ✓ | ✓ | |
+| Borrar registros, anular cobros | ✓ | ✓ | |
+| Editar catálogo, precios y ajustar stock | ✓ | ✓ | |
+| Configuración del negocio | ✓ | ✓ | |
+| Invitar / quitar empleados | ✓ | ✓ | |
+| Invitar administradores y cambiar roles | ✓ | | |
+
+Las invitaciones viven en `invitaciones/{negocioId}_{email}`, vencen a los 7 días y sólo las puede
+aceptar quien **verificó ese email**.
+
 ### Seguridad
 
 Las reglas están en [`firestore.rules`](firestore.rules) y tienen tests en
@@ -64,7 +81,9 @@ Las reglas están en [`firestore.rules`](firestore.rules) y tienen tests en
 - cada negocio sólo es visible para sus miembros;
 - **el plan PRO no se puede activar desde la app** (sólo desde la consola o un backend);
 - los cobros no se borran ni se editan (sólo se anulan) y la numeración no retrocede;
-- un trabajo con cobros no se puede eliminar.
+- un trabajo con cobros no se puede eliminar;
+- los permisos de cada rol (tabla de arriba) se validan en el servidor, no sólo en la app;
+- cada movimiento de stock queda firmado por el usuario que lo hizo.
 
 ## Desarrollo
 

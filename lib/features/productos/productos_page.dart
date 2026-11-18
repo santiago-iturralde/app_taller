@@ -11,6 +11,7 @@ import '../../data/models/producto.dart';
 import 'producto_detalle_page.dart';
 import 'producto_form.dart';
 import 'widgets_producto.dart';
+import '../../data/models/negocio.dart';
 
 enum _Filtro { todos, stockBajo, servicios }
 
@@ -28,94 +29,101 @@ class _ProductosPageState extends State<ProductosPage> {
   int _limite = 100;
 
   void _buscar(String q) => setState(() {
-        _consulta = q;
-        _busqueda = q.isEmpty ? null : Sesion.of(context).productos.buscar(q, limite: 40);
-      });
+    _consulta = q;
+    _busqueda = q.isEmpty ? null : Sesion.of(context).productos.buscar(q, limite: 40);
+  });
 
   @override
   Widget build(BuildContext context) {
     final repo = Sesion.of(context).productos;
     return Scaffold(
       appBar: AppBar(title: const Text('Productos y servicios')),
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'fab-productos',
-        onPressed: () async {
-          final p = await abrirFormulario<Producto>(context, const ProductoForm());
-          if (p != null && context.mounted) abrirPagina(context, ProductoDetallePage(productoId: p.id));
-        },
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Nuevo'),
-      ),
+      floatingActionButton: !Sesion.of(context).puede(Permiso.editarCatalogo)
+          ? null
+          : FloatingActionButton.extended(
+              heroTag: 'fab-productos',
+              onPressed: () async {
+                final p = await abrirFormulario<Producto>(context, const ProductoForm());
+                if (p != null && context.mounted) abrirPagina(context, ProductoDetallePage(productoId: p.id));
+              },
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Nuevo'),
+            ),
       body: ContenidoCentrado(
         anchoMaximo: 860,
-        child: Column(children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.l, Espacio.l, Espacio.s),
-            child: Buscador(onBuscar: _buscar, hint: 'Buscar por nombre, código o categoría'),
-          ),
-          if (_busqueda == null)
-            SizedBox(
-              height: 48,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: Espacio.l, vertical: Espacio.xs),
-                children: [
-                  for (final (f, texto, icono) in [
-                    (_Filtro.todos, 'Todos', null),
-                    (_Filtro.stockBajo, 'Stock bajo', Icons.warning_amber_rounded),
-                    (_Filtro.servicios, 'Servicios', Icons.handyman_outlined),
-                  ])
-                    Padding(
-                      padding: const EdgeInsets.only(right: Espacio.s),
-                      child: FilterChip(
-                        label: Text(texto),
-                        avatar: icono == null ? null : Icon(icono, size: 16),
-                        selected: _filtro == f,
-                        showCheckmark: false,
-                        onSelected: (_) => setState(() => _filtro = f),
-                      ),
-                    ),
-                ],
-              ),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.l, Espacio.l, Espacio.s),
+              child: Buscador(onBuscar: _buscar, hint: 'Buscar por nombre, código o categoría'),
             ),
-          Expanded(
-            child: _busqueda != null
-                ? FutureBuilder<List<Producto>>(
-                    future: _busqueda,
-                    builder: (context, s) {
-                      if (s.hasError) return const EstadoError();
-                      if (!s.hasData) return const Cargando();
-                      return _lista(s.data!, EstadoVacio(icono: Icons.search_off_rounded, titulo: 'Sin resultados para "$_consulta"'));
-                    },
-                  )
-                : StreamBuilder<List<Producto>>(
-                    stream: _filtro == _Filtro.stockBajo ? repo.conStockBajo() : repo.listar(limite: _limite),
-                    builder: (context, s) {
-                      if (s.hasError) return EstadoError(error: s.error);
-                      if (!s.hasData) return const Cargando();
-                      var lista = s.data!;
-                      if (_filtro == _Filtro.servicios) lista = lista.where((p) => !p.controlaStock).toList();
-                      if (_filtro == _Filtro.stockBajo) lista.sort((a, b) => a.stock.compareTo(b.stock));
-                      return _lista(
-                        lista,
-                        EstadoVacio(
-                          icono: _filtro == _Filtro.stockBajo ? Icons.verified_outlined : Icons.inventory_2_outlined,
-                          titulo: switch (_filtro) {
-                            _Filtro.stockBajo => 'Todo el stock está en orden',
-                            _Filtro.servicios => 'Sin servicios cargados',
-                            _Filtro.todos => 'Armá tu catálogo',
-                          },
-                          mensaje: _filtro == _Filtro.todos
-                              ? 'Cargá productos (con stock) y servicios con su precio. Después los agregás '
-                                  'a trabajos, presupuestos y ventas con un toque, y el stock se descuenta solo.'
-                              : null,
+            if (_busqueda == null)
+              SizedBox(
+                height: 48,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: Espacio.l, vertical: Espacio.xs),
+                  children: [
+                    for (final (f, texto, icono) in [
+                      (_Filtro.todos, 'Todos', null),
+                      (_Filtro.stockBajo, 'Stock bajo', Icons.warning_amber_rounded),
+                      (_Filtro.servicios, 'Servicios', Icons.handyman_outlined),
+                    ])
+                      Padding(
+                        padding: const EdgeInsets.only(right: Espacio.s),
+                        child: FilterChip(
+                          label: Text(texto),
+                          avatar: icono == null ? null : Icon(icono, size: 16),
+                          selected: _filtro == f,
+                          showCheckmark: false,
+                          onSelected: (_) => setState(() => _filtro = f),
                         ),
-                        hayMas: _filtro == _Filtro.todos && s.data!.length >= _limite,
-                      );
-                    },
-                  ),
-          ),
-        ]),
+                      ),
+                  ],
+                ),
+              ),
+            Expanded(
+              child: _busqueda != null
+                  ? FutureBuilder<List<Producto>>(
+                      future: _busqueda,
+                      builder: (context, s) {
+                        if (s.hasError) return const EstadoError();
+                        if (!s.hasData) return const Cargando();
+                        return _lista(
+                          s.data!,
+                          EstadoVacio(icono: Icons.search_off_rounded, titulo: 'Sin resultados para "$_consulta"'),
+                        );
+                      },
+                    )
+                  : StreamBuilder<List<Producto>>(
+                      stream: _filtro == _Filtro.stockBajo ? repo.conStockBajo() : repo.listar(limite: _limite),
+                      builder: (context, s) {
+                        if (s.hasError) return EstadoError(error: s.error);
+                        if (!s.hasData) return const Cargando();
+                        var lista = s.data!;
+                        if (_filtro == _Filtro.servicios) lista = lista.where((p) => !p.controlaStock).toList();
+                        if (_filtro == _Filtro.stockBajo) lista.sort((a, b) => a.stock.compareTo(b.stock));
+                        return _lista(
+                          lista,
+                          EstadoVacio(
+                            icono: _filtro == _Filtro.stockBajo ? Icons.verified_outlined : Icons.inventory_2_outlined,
+                            titulo: switch (_filtro) {
+                              _Filtro.stockBajo => 'Todo el stock está en orden',
+                              _Filtro.servicios => 'Sin servicios cargados',
+                              _Filtro.todos => 'Armá tu catálogo',
+                            },
+                            mensaje: _filtro == _Filtro.todos
+                                ? 'Cargá productos (con stock) y servicios con su precio. Después los agregás '
+                                      'a trabajos, presupuestos y ventas con un toque, y el stock se descuenta solo.'
+                                : null,
+                          ),
+                          hayMas: _filtro == _Filtro.todos && s.data!.length >= _limite,
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -128,10 +136,15 @@ class _ProductosPageState extends State<ProductosPage> {
       separatorBuilder: (_, __) => const SizedBox(height: Espacio.s),
       itemBuilder: (context, i) {
         if (i == lista.length) {
-          return Center(child: TextButton(onPressed: () => setState(() => _limite += 100), child: const Text('Ver más')));
+          return Center(
+            child: TextButton(onPressed: () => setState(() => _limite += 100), child: const Text('Ver más')),
+          );
         }
         final p = lista[i];
-        return FilaProducto(producto: p, onTap: () => abrirPagina(context, ProductoDetallePage(productoId: p.id)));
+        return FilaProducto(
+          producto: p,
+          onTap: () => abrirPagina(context, ProductoDetallePage(productoId: p.id)),
+        );
       },
     );
   }
@@ -174,9 +187,9 @@ class _SelectorProductoState extends State<_SelectorProducto> {
   Future<List<Producto>>? _resultados;
 
   void _buscar(String q) => setState(() {
-        _consulta = q;
-        _resultados = q.isEmpty ? null : widget.sesion.productos.buscar(q);
-      });
+    _consulta = q;
+    _resultados = q.isEmpty ? null : widget.sesion.productos.buscar(q);
+  });
 
   Future<void> _crear() async {
     final nuevo = await abrirFormulario<Producto>(context, ProductoForm(nombreInicial: _consulta));
@@ -187,29 +200,34 @@ class _SelectorProductoState extends State<_SelectorProducto> {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.l, Espacio.l, 0),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text('Agregar del catálogo', style: context.textos.titleMedium),
-        const SizedBox(height: Espacio.m),
-        Buscador(onBuscar: _buscar, hint: 'Nombre o código', autofocus: true),
-        const SizedBox(height: Espacio.s),
-        ListTile(
-          leading: IconoTile(Icons.add_rounded, tamanio: 36, color: context.esquema.primary),
-          title: Text(_consulta.isEmpty ? 'Nuevo producto o servicio' : 'Crear "$_consulta"'),
-          onTap: _crear,
-        ),
-        const Divider(),
-        Expanded(
-          child: _resultados == null
-              ? StreamBuilder<List<Producto>>(
-                  stream: widget.sesion.productos.listar(limite: 40),
-                  builder: (context, s) => _lista(s.data, s.hasError),
-                )
-              : FutureBuilder<List<Producto>>(
-                  future: _resultados,
-                  builder: (context, s) => s.connectionState == ConnectionState.waiting ? const Cargando() : _lista(s.data, s.hasError),
-                ),
-        ),
-      ]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Agregar del catálogo', style: context.textos.titleMedium),
+          const SizedBox(height: Espacio.m),
+          Buscador(onBuscar: _buscar, hint: 'Nombre o código', autofocus: true),
+          const SizedBox(height: Espacio.s),
+          if (widget.sesion.puede(Permiso.editarCatalogo))
+            ListTile(
+              leading: IconoTile(Icons.add_rounded, tamanio: 36, color: context.esquema.primary),
+              title: Text(_consulta.isEmpty ? 'Nuevo producto o servicio' : 'Crear "$_consulta"'),
+              onTap: _crear,
+            ),
+          const Divider(),
+          Expanded(
+            child: _resultados == null
+                ? StreamBuilder<List<Producto>>(
+                    stream: widget.sesion.productos.listar(limite: 40),
+                    builder: (context, s) => _lista(s.data, s.hasError),
+                  )
+                : FutureBuilder<List<Producto>>(
+                    future: _resultados,
+                    builder: (context, s) =>
+                        s.connectionState == ConnectionState.waiting ? const Cargando() : _lista(s.data, s.hasError),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 

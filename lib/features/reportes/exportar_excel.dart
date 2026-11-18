@@ -11,10 +11,12 @@ import '../../data/models/cliente.dart';
 import '../../data/models/negocio.dart';
 import '../../data/models/orden.dart';
 import '../../data/models/presupuesto.dart';
+import '../../data/models/producto.dart';
 import '../planes/pro.dart';
 
 /// Descarga un Excel con todos los datos del negocio (una hoja por tipo).
 Future<void> exportarExcel(BuildContext context) async {
+  if (!Sesion.of(context).puede(Permiso.exportar)) return;
   if (!await exigirPro(context, FuncionPro.exportarExcel) || !context.mounted) return;
   if (!kIsWeb) {
     mostrarMensaje(context, 'La exportación a Excel está disponible desde la versión web.', error: true);
@@ -30,6 +32,7 @@ Future<void> exportarExcel(BuildContext context) async {
       db.presupuestos.orderBy('numero').get(),
       db.pagos.orderBy('numero').get(),
       db.gastos.orderBy('fecha').get(),
+      db.productos.orderBy('nombreOrden').get(),
     ]);
     final rubro = s.negocio.rubro;
     final excel = Excel.createExcel();
@@ -81,6 +84,13 @@ Future<void> exportarExcel(BuildContext context) async {
         () {
           final g = Gasto.fromMap(d.id, d.data());
           return [g.fecha, g.descripcion, g.categoria, g.medio.etiqueta, g.monto];
+        }(),
+    ]);
+    hoja('Productos', ['Nombre', 'Código', 'Categoría', 'Tipo', 'Precio', 'Costo', 'Stock', 'Stock mínimo'], [
+      for (final d in resultados[5].docs)
+        () {
+          final p = Producto.fromMap(d.id, d.data());
+          return [p.nombre, p.codigo, p.categoria, p.tipo.etiqueta, p.precio, p.costo, p.controlaStock ? p.stock : null, p.controlaStock ? p.stockMinimo : null];
         }(),
     ]);
     excel.delete(hojaInicial);

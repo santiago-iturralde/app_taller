@@ -7,6 +7,7 @@ import '../data/db.dart';
 import '../data/models/negocio.dart';
 import '../data/repositories/caja_repository.dart';
 import '../data/repositories/clientes_repository.dart';
+import '../data/repositories/equipo_repository.dart';
 import '../data/repositories/negocio_repository.dart';
 import '../data/repositories/ordenes_repository.dart';
 import '../data/repositories/presupuestos_repository.dart';
@@ -29,11 +30,12 @@ class Sesion {
     required this.caja,
     required this.negocioRepo,
     required this.productos,
+    required this.equipo,
   });
 
   factory Sesion.crear({required User usuario, required Negocio negocio, required RolMiembro rol}) {
     final db = Db(negocio.id);
-    final productos = ProductosRepository(db);
+    final productos = ProductosRepository(db, usuarioUid: usuario.uid, usuarioEmail: usuario.email ?? '');
     return Sesion._(
       usuario: usuario,
       negocio: negocio,
@@ -45,6 +47,7 @@ class Sesion {
       caja: CajaRepository(db, productos),
       negocioRepo: NegocioRepository(db),
       productos: productos,
+      equipo: EquipoRepository(db),
     );
   }
 
@@ -58,11 +61,16 @@ class Sesion {
   final CajaRepository caja;
   final NegocioRepository negocioRepo;
   final ProductosRepository productos;
+  final EquipoRepository equipo;
 
-  Sesion _conNegocio(Negocio n) => Sesion._(
+  /// ¿El usuario actual puede hacer [p]? (La UI usa esto para mostrar u
+  /// ocultar acciones; las reglas de Firestore lo garantizan en el servidor.)
+  bool puede(Permiso p) => rol.puede(p);
+
+  Sesion _con({Negocio? negocio, RolMiembro? rol}) => Sesion._(
         usuario: usuario,
-        negocio: n,
-        rol: rol,
+        negocio: negocio ?? this.negocio,
+        rol: rol ?? this.rol,
         db: db,
         clientes: clientes,
         ordenes: ordenes,
@@ -70,6 +78,7 @@ class Sesion {
         caja: caja,
         negocioRepo: negocioRepo,
         productos: productos,
+        equipo: equipo,
       );
 
   static Sesion of(BuildContext context) {
@@ -80,38 +89,76 @@ class Sesion {
   }
 }
 
-/// Mantiene la sesión activa y la sincroniza con el documento del negocio.
+/// Mantiene la sesión activa y la sincroniza con Firestore: el documento
+/// del negocio (plan, datos) y el registro de miembro del usuario (rol, o
+/// si lo quitaron del equipo).
 class SesionController extends ChangeNotifier {
   Sesion? _sesion;
-  StreamSubscription<Negocio?>? _sub;
+  final List<StreamSubscription<Object?>> _subs = [];
+  bool _accesoPerdido = false;
 
   Sesion? get sesion => _sesion;
 
+  /// `true` si el usuario dejó de ser miembro mientras usaba la app.
+  /// La sesión anterior queda disponible hasta que se inicie otra.
+  bool get accesoPerdido => _accesoPerdido;
+
   void iniciar(Sesion sesion) {
-    _sub?.cancel();
+    _cancelar();
     _sesion = sesion;
-    _sub = sesion.negocioRepo.observar().listen((n) {
+    _accesoPerdido = false;
+    _subs.add(sesion.negocioRepo.observar().listen((n) {
       final actual = _sesion;
       if (n != null && actual != null && actual.negocio.id == n.id) {
-        _sesion = actual._conNegocio(n);
+        _sesion = actual._con(negocio: n);
         notifyListeners();
       }
-    });
+    }, onError: (_) {}));
+    _subs.add(sesion.db.miembros.doc(sesion.usuario.uid).snapshots().listen((d) {
+      final actual = _sesion;
+      if (actual == null) return;
+      if (!d.exists) {
+        _perderAcceso();
+        return;
+      }
+      final rol = RolMiembro.desde(d.data()?['rol'] as String?);
+      if (rol != actual.rol) {
+        _sesion = actual._con(rol: rol);
+        notifyListeners();
+      }
+    }, onError: (_) => _perderAcceso()));
+    notifyListeners();
+  }
+
+  /// Se conserva la sesión anterior (las pantallas abiertas no se rompen
+  /// mientras se cierran); el arranque detecta [accesoPerdido] y muestra el
+  /// aviso correspondiente.
+  void _perderAcceso() {
+    if (_sesion == null || _accesoPerdido) return;
+    _cancelar();
+    _accesoPerdido = true;
     notifyListeners();
   }
 
   void cerrar() {
-    _sub?.cancel();
-    _sub = null;
+    _cancelar();
+    _accesoPerdido = false;
     if (_sesion != null) {
       _sesion = null;
       notifyListeners();
     }
   }
 
+  void _cancelar() {
+    for (final s in _subs) {
+      s.cancel();
+    }
+    _subs.clear();
+  }
+
   @override
   void dispose() {
-    _sub?.cancel();
+    _cancelar();
     super.dispose();
   }
 }

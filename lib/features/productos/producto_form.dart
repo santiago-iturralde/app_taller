@@ -28,7 +28,9 @@ class _ProductoFormState extends State<ProductoForm> {
   late final _precio = TextEditingController(text: Formato.montoEditable(_p?.precio));
   late final _costo = TextEditingController(text: Formato.montoEditable(_p?.costo));
   final _stockInicial = TextEditingController();
-  late final _stockMinimo = TextEditingController(text: _p == null || _p!.stockMinimo == 0 ? '' : Formato.cantidad(_p!.stockMinimo));
+  late final _stockMinimo = TextEditingController(
+    text: _p == null || _p!.stockMinimo == 0 ? '' : Formato.cantidad(_p!.stockMinimo),
+  );
   late TipoProducto _tipo = _p?.tipo ?? TipoProducto.producto;
   bool _guardando = false;
 
@@ -96,7 +98,9 @@ class _ProductoFormState extends State<ProductoForm> {
         ),
         const SizedBox(height: Espacio.s),
         Text(
-          esProducto ? 'Los productos llevan control de stock.' : 'Los servicios (mano de obra, diagnóstico…) no llevan stock.',
+          esProducto
+              ? 'Los productos llevan control de stock.'
+              : 'Los servicios (mano de obra, diagnóstico…) no llevan stock.',
           style: context.textos.bodySmall?.copyWith(color: context.esquema.onSurfaceVariant),
         ),
         const SizedBox(height: Espacio.xl),
@@ -111,52 +115,65 @@ class _ProductoFormState extends State<ProductoForm> {
           validator: (v) => (v == null || v.trim().isEmpty) ? 'Completá el nombre' : null,
         ),
         espacioCampos,
-        FilaCampos(children: [
-          TextFormField(
-            controller: _codigo,
-            textCapitalization: TextCapitalization.characters,
-            decoration: const InputDecoration(labelText: 'Código (opcional)', hintText: 'SKU, código de barras…'),
-          ),
-          TextFormField(
-            controller: _categoria,
-            textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(labelText: 'Categoría (opcional)', hintText: 'Ej: Aceites, Filtros'),
-          ),
-        ]),
+        FilaCampos(
+          children: [
+            TextFormField(
+              controller: _codigo,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(labelText: 'Código (opcional)', hintText: 'SKU, código de barras…'),
+            ),
+            TextFormField(
+              controller: _categoria,
+              textCapitalization: TextCapitalization.sentences,
+              decoration: const InputDecoration(labelText: 'Categoría (opcional)', hintText: 'Ej: Aceites, Filtros'),
+            ),
+          ],
+        ),
         const GrupoFormulario('Precio'),
-        FilaCampos(children: [
-          CampoMonto(controller: _precio, etiqueta: 'Precio de venta', onChanged: (_) => setState(() {})),
-          CampoMonto(
-            controller: _costo,
-            etiqueta: 'Costo (opcional)',
-            obligatorio: false,
-            permitirCero: true,
-            onChanged: (_) => setState(() {}),
-            helper: margen == null ? 'Para calcular tu ganancia' : 'Margen: ${margen.toStringAsFixed(0)}%',
-          ),
-        ]),
+        FilaCampos(
+          children: [
+            CampoMonto(controller: _precio, etiqueta: 'Precio de venta', onChanged: (_) => setState(() {})),
+            CampoMonto(
+              controller: _costo,
+              etiqueta: 'Costo (opcional)',
+              obligatorio: false,
+              permitirCero: true,
+              onChanged: (_) => setState(() {}),
+              helper: margen == null ? 'Para calcular tu ganancia' : 'Margen: ${margen.toStringAsFixed(0)}%',
+            ),
+          ],
+        ),
         if (esProducto) ...[
           const GrupoFormulario('Stock'),
-          FilaCampos(children: [
-            if (_p == null)
+          FilaCampos(
+            children: [
+              if (_p == null)
+                TextFormField(
+                  controller: _stockInicial,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: numeros,
+                  decoration: const InputDecoration(labelText: 'Stock inicial', hintText: '0'),
+                )
+              else
+                InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Stock actual',
+                    helperText: 'Se modifica desde el detalle del producto',
+                  ),
+                  child: Text(Formato.cantidad(_p!.stock)),
+                ),
               TextFormField(
-                controller: _stockInicial,
+                controller: _stockMinimo,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: numeros,
-                decoration: const InputDecoration(labelText: 'Stock inicial', hintText: '0'),
-              )
-            else
-              InputDecorator(
-                decoration: const InputDecoration(labelText: 'Stock actual', helperText: 'Se modifica desde el detalle del producto'),
-                child: Text(Formato.cantidad(_p!.stock)),
+                decoration: const InputDecoration(
+                  labelText: 'Avisar cuando queden',
+                  hintText: 'Ej: 3',
+                  helperText: 'Stock mínimo',
+                ),
               ),
-            TextFormField(
-              controller: _stockMinimo,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: numeros,
-              decoration: const InputDecoration(labelText: 'Avisar cuando queden', hintText: 'Ej: 3', helperText: 'Stock mínimo'),
-            ),
-          ]),
+            ],
+          ),
         ],
       ],
     );

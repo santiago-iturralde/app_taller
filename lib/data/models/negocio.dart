@@ -8,7 +8,8 @@ enum Plan { gratis, pro }
 enum FuncionPro {
   reportes('Reportes y estadísticas'),
   recibosPdf('Recibos impresos'),
-  exportarExcel('Exportar a Excel');
+  exportarExcel('Exportar a Excel'),
+  equipo('Trabajar en equipo');
 
   const FuncionPro(this.nombre);
   final String nombre;
@@ -34,7 +35,35 @@ enum RolMiembro {
         empleado => 'empleado',
       };
 
+  String get descripcion => switch (this) {
+        duenio => 'Control total del negocio.',
+        admin => 'Todo, salvo gestionar administradores y el plan.',
+        empleado => 'Trabaja el día a día. No ve gastos ni reportes, no borra ni anula cobros.',
+      };
+
   bool get puedeAdministrar => this != empleado;
+
+  bool puede(Permiso p) => switch (p) {
+        Permiso.invitarAdministradores || Permiso.cambiarRoles => this == duenio,
+        _ => this != empleado,
+      };
+}
+
+/// Acciones restringidas por rol. Las reglas de Firestore aplican las
+/// mismas restricciones del lado del servidor; esto sólo adapta la UI.
+enum Permiso {
+  verReportes,
+  verGastos,
+  anularCobros,
+  eliminarRegistros,
+  editarCatalogo,
+  ajustarStock,
+  editarNegocio,
+  gestionarEquipo,
+  invitarAdministradores,
+  cambiarRoles,
+  exportar,
+  verTotalesCaja,
 }
 
 /// Plantillas de mensajes de WhatsApp editables por cada negocio.

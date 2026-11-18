@@ -115,11 +115,12 @@ class _AccionesRapidas extends StatelessWidget {
         () async {
           final c = await abrirFormulario<Cliente>(context, const ClienteForm());
           if (c != null && context.mounted) abrirPagina(context, ClienteDetallePage(clienteId: c.id));
-        }
+        },
       ),
       (Icons.request_quote_outlined, 'Presupuesto', () => nuevoPresupuesto(context)),
       (Icons.shopping_bag_outlined, 'Venta / cobro', () => nuevoIngreso(context)),
-      (Icons.remove_circle_outline_rounded, 'Gasto', () => abrirFormulario(context, const GastoForm())),
+      if (Sesion.of(context).puede(Permiso.verGastos))
+        (Icons.remove_circle_outline_rounded, 'Gasto', () => abrirFormulario(context, const GastoForm())),
     ];
     return SizedBox(
       height: 92,
@@ -139,7 +140,13 @@ class _AccionesRapidas extends StatelessWidget {
                 children: [
                   IconoTile(a.$1, tamanio: 36),
                   const SizedBox(height: Espacio.s),
-                  Text(a.$2, style: context.textos.labelMedium, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(
+                    a.$2,
+                    style: context.textos.labelMedium,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
@@ -165,43 +172,51 @@ class _Indicadores extends StatelessWidget {
     return StreamBuilder<List<Orden>>(
       stream: sesion.ordenes.conSaldo(),
       builder: (context, sd) {
-        final deudores = (sd.data ?? const <Orden>[]).where((o) => !o.estado.activo || o.estado == EstadoOrden.listo).toList();
+        final deudores = (sd.data ?? const <Orden>[])
+            .where((o) => !o.estado.activo || o.estado == EstadoOrden.listo)
+            .toList();
         final porCobrar = deudores.fold(0.0, (s, o) => s + o.saldo);
         return StreamBuilder<List<Pago>>(
           stream: sesion.caja.pagosDelMes(mes),
           builder: (context, sp) {
             final cobrado = (sp.data ?? const <Pago>[]).where((p) => p.cuentaEnCaja).fold(0.0, (s, p) => s + p.monto);
-            return GrillaAdaptable(anchoMinimo: 230, children: [
-              Indicador(
-                etiqueta: 'Trabajos en curso',
-                valor: '${activas.length}',
-                icono: Icons.build_outlined,
-                color: c.info,
-                onTap: () => irATrabajos(null),
-              ),
-              Indicador(
-                etiqueta: 'Listos para retirar',
-                valor: '$listos',
-                icono: Icons.check_circle_outline_rounded,
-                color: c.exito,
-                onTap: () => irATrabajos(EstadoOrden.listo),
-              ),
-              Indicador(
-                etiqueta: 'Por cobrar',
-                valor: Formato.moneda(porCobrar),
-                icono: Icons.account_balance_wallet_outlined,
-                color: c.peligro,
-                detalle: deudores.isEmpty ? 'Nada pendiente' : '${deudores.length} trabajo${deudores.length == 1 ? '' : 's'} terminado${deudores.length == 1 ? '' : 's'}',
-                onTap: deudores.isEmpty ? null : () => _verDeudores(context, deudores),
-              ),
-              Indicador(
-                etiqueta: 'Cobrado en ${Formato.mes(mes).toLowerCase()}',
-                valor: Formato.moneda(cobrado),
-                icono: Icons.south_west_rounded,
-                color: c.exito,
-                onTap: () => abrirPagina(context, const CajaPage()),
-              ),
-            ]);
+            return GrillaAdaptable(
+              anchoMinimo: 230,
+              children: [
+                Indicador(
+                  etiqueta: 'Trabajos en curso',
+                  valor: '${activas.length}',
+                  icono: Icons.build_outlined,
+                  color: c.info,
+                  onTap: () => irATrabajos(null),
+                ),
+                Indicador(
+                  etiqueta: 'Listos para retirar',
+                  valor: '$listos',
+                  icono: Icons.check_circle_outline_rounded,
+                  color: c.exito,
+                  onTap: () => irATrabajos(EstadoOrden.listo),
+                ),
+                Indicador(
+                  etiqueta: 'Por cobrar',
+                  valor: Formato.moneda(porCobrar),
+                  icono: Icons.account_balance_wallet_outlined,
+                  color: c.peligro,
+                  detalle: deudores.isEmpty
+                      ? 'Nada pendiente'
+                      : '${deudores.length} trabajo${deudores.length == 1 ? '' : 's'} terminado${deudores.length == 1 ? '' : 's'}',
+                  onTap: deudores.isEmpty ? null : () => _verDeudores(context, deudores),
+                ),
+                if (sesion.puede(Permiso.verTotalesCaja))
+                  Indicador(
+                    etiqueta: 'Cobrado en ${Formato.mes(mes).toLowerCase()}',
+                    valor: Formato.moneda(cobrado),
+                    icono: Icons.south_west_rounded,
+                    color: c.exito,
+                    onTap: () => abrirPagina(context, const CajaPage()),
+                  ),
+              ],
+            );
           },
         );
       },
@@ -265,10 +280,14 @@ class _ListaSeccion extends StatelessWidget {
       children: [
         Seccion(
           ordenes.isEmpty ? titulo : '$titulo (${ordenes.length})',
-          accion: ordenes.length > visibles.length ? TextButton(onPressed: verTodos, child: const Text('Ver todos')) : null,
+          accion: ordenes.length > visibles.length
+              ? TextButton(onPressed: verTodos, child: const Text('Ver todos'))
+              : null,
         ),
         if (ordenes.isEmpty)
-          AppCard(child: Text(vacio ?? '', style: TextStyle(color: context.esquema.onSurfaceVariant)))
+          AppCard(
+            child: Text(vacio ?? '', style: TextStyle(color: context.esquema.onSurfaceVariant)),
+          )
         else
           GrillaAdaptable(
             anchoMinimo: 420,
@@ -306,27 +325,35 @@ class _StockBajo extends StatelessWidget {
         if (lista.isEmpty) return const SizedBox.shrink();
         lista.sort((a, b) => a.stock.compareTo(b.stock));
         final visibles = lista.take(6).toList();
-        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Seccion(
-            'Stock bajo (${lista.length})',
-            accion: lista.length > visibles.length
-                ? TextButton(onPressed: () => abrirPagina(context, const ProductosPage()), child: const Text('Ver todos'))
-                : null,
-          ),
-          AppCard(
-            padding: const EdgeInsets.symmetric(vertical: Espacio.s),
-            child: Column(children: [
-              for (final p in visibles)
-                ListTile(
-                  leading: Icon(Icons.warning_amber_rounded, color: context.colores.alerta),
-                  title: Text(p.nombre, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  subtitle: p.stockMinimo > 0 ? Text('Mínimo: ${Formato.cantidad(p.stockMinimo)}') : null,
-                  trailing: EtiquetaStock(p),
-                  onTap: () => abrirPagina(context, ProductoDetallePage(productoId: p.id)),
-                ),
-            ]),
-          ),
-        ]);
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Seccion(
+              'Stock bajo (${lista.length})',
+              accion: lista.length > visibles.length
+                  ? TextButton(
+                      onPressed: () => abrirPagina(context, const ProductosPage()),
+                      child: const Text('Ver todos'),
+                    )
+                  : null,
+            ),
+            AppCard(
+              padding: const EdgeInsets.symmetric(vertical: Espacio.s),
+              child: Column(
+                children: [
+                  for (final p in visibles)
+                    ListTile(
+                      leading: Icon(Icons.warning_amber_rounded, color: context.colores.alerta),
+                      title: Text(p.nombre, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      subtitle: p.stockMinimo > 0 ? Text('Mínimo: ${Formato.cantidad(p.stockMinimo)}') : null,
+                      trailing: EtiquetaStock(p),
+                      onTap: () => abrirPagina(context, ProductoDetallePage(productoId: p.id)),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        );
       },
     );
   }

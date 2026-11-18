@@ -14,6 +14,7 @@ import '../../core/widgets/feedback.dart';
 import '../../data/models/negocio.dart';
 import '../../data/models/rubro.dart';
 import '../planes/planes_page.dart';
+import '../equipo/equipo_seccion.dart';
 
 class AjustesPage extends StatelessWidget {
   const AjustesPage({super.key});
@@ -36,6 +37,10 @@ class AjustesPage extends StatelessWidget {
                 _DatosNegocio(negocio: sesion.negocio, habilitado: puedeEditar),
                 const Seccion('Mensajes de WhatsApp'),
                 _Plantillas(negocio: sesion.negocio, habilitado: puedeEditar),
+                if (sesion.puede(Permiso.gestionarEquipo)) ...[
+                  const Seccion('Equipo'),
+                  const EquipoSeccion(),
+                ],
                 const Seccion('Apariencia'),
                 const AppCard(child: Align(alignment: Alignment.centerLeft, child: SelectorTema())),
                 const Seccion('Plan'),
@@ -331,6 +336,22 @@ class _Cuenta extends StatelessWidget {
             exito: 'Te enviamos un email a $email',
           ),
         ),
+        if (sesion.rol != RolMiembro.duenio)
+          ListTile(
+            leading: const Icon(Icons.exit_to_app_rounded),
+            title: Text('Salir de ${sesion.negocio.nombre}'),
+            subtitle: const Text('Dejás de tener acceso a este negocio'),
+            onTap: () async {
+              final ok = await confirmar(
+                context,
+                titulo: 'Salir del negocio',
+                mensaje: 'Vas a dejar de tener acceso a ${sesion.negocio.nombre}. Para volver, te tienen que invitar de nuevo.',
+                confirmar: 'Salir',
+                peligroso: true,
+              );
+              if (ok && context.mounted) await ejecutar(context, () => sesion.equipo.salir(sesion.usuario.uid));
+            },
+          ),
         ListTile(
           leading: Icon(Icons.logout_rounded, color: context.colores.peligro),
           title: Text('Cerrar sesión', style: TextStyle(color: context.colores.peligro)),

@@ -49,6 +49,10 @@ abstract final class WhatsApp {
     return launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  /// Abre WhatsApp para elegir a quién mandarle [mensaje].
+  static Future<bool> compartir(String mensaje) =>
+      launchUrl(Uri.https('wa.me', '/', {'text': mensaje}), mode: LaunchMode.externalApplication);
+
   /// Reemplaza `{clave}` por su valor. Las claves sin valor quedan vacías.
   static String aplicarPlantilla(String plantilla, Map<String, String> valores) {
     return plantilla.replaceAllMapped(RegExp(r'\{(\w+)\}'), (m) => valores[m.group(1)] ?? '').trim();

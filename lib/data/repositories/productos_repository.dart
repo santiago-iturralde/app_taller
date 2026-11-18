@@ -6,13 +6,20 @@ import '../models/comunes.dart';
 import '../models/producto.dart';
 
 class ProductosRepository {
-  ProductosRepository(this._db);
+  ProductosRepository(this._db, {required this.usuarioUid, this.usuarioEmail = ''});
   final Db _db;
+
+  /// Quién hace los movimientos de stock (queda registrado en el historial).
+  final String usuarioUid;
+  final String usuarioEmail;
 
   List<Producto> _mapear(QuerySnapshot<Json> s) => s.docs.map((d) => Producto.fromMap(d.id, d.data())).toList();
 
   Stream<List<Producto>> listar({int limite = 100}) =>
       _db.productos.orderBy('nombreOrden').limit(limite).snapshots().map(_mapear);
+
+  /// Todo el catálogo (para reportes de inventario).
+  Future<List<Producto>> todos() async => _mapear(await _db.productos.get());
 
   Stream<List<Producto>> conStockBajo() =>
       _db.productos.where('stockBajo', isEqualTo: true).snapshots().map(_mapear);
@@ -114,5 +121,7 @@ class ProductosRepository {
         'stockResultante': resultante,
         'referencia': referencia,
         'fecha': FieldValue.serverTimestamp(),
+        'usuarioUid': usuarioUid,
+        'usuarioEmail': usuarioEmail,
       };
 }

@@ -16,6 +16,7 @@ import '../trabajos/orden_detalle_page.dart';
 import '../trabajos/orden_form.dart';
 import '../trabajos/widgets_orden.dart';
 import 'cliente_form.dart';
+import '../../data/models/negocio.dart';
 
 class ClienteDetallePage extends StatelessWidget {
   const ClienteDetallePage({super.key, required this.clienteId});
@@ -27,7 +28,12 @@ class ClienteDetallePage extends StatelessWidget {
     return StreamBuilder<Cliente?>(
       stream: sesion.clientes.observar(clienteId),
       builder: (context, s) {
-        if (s.hasError) return Scaffold(appBar: AppBar(), body: EstadoError(error: s.error));
+        if (s.hasError) {
+          return Scaffold(
+            appBar: AppBar(),
+            body: EstadoError(error: s.error),
+          );
+        }
         if (s.connectionState == ConnectionState.waiting) return Scaffold(appBar: AppBar(), body: const Cargando());
         final cliente = s.data;
         if (cliente == null) {
@@ -55,7 +61,11 @@ class _Contenido extends StatelessWidget {
       peligroso: true,
     );
     if (!ok || !context.mounted) return;
-    final eliminado = await ejecutar(context, () => Sesion.of(context).clientes.eliminar(cliente.id), exito: 'Cliente eliminado');
+    final eliminado = await ejecutar(
+      context,
+      () => Sesion.of(context).clientes.eliminar(cliente.id),
+      exito: 'Cliente eliminado',
+    );
     if (eliminado && context.mounted) Navigator.pop(context);
   }
 
@@ -71,14 +81,18 @@ class _Contenido extends StatelessWidget {
             icon: const Icon(Icons.edit_outlined),
             onPressed: () => abrirFormulario(context, ClienteForm(cliente: cliente)),
           ),
-          PopupMenuButton<String>(
-            onSelected: (v) {
-              if (v == 'eliminar') _eliminar(context);
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'eliminar', child: ListTile(leading: Icon(Icons.delete_outline), title: Text('Eliminar'))),
-            ],
-          ),
+          if (Sesion.of(context).puede(Permiso.eliminarRegistros))
+            PopupMenuButton<String>(
+              onSelected: (v) {
+                if (v == 'eliminar') _eliminar(context);
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'eliminar',
+                  child: ListTile(leading: Icon(Icons.delete_outline), title: Text('Eliminar')),
+                ),
+              ],
+            ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -106,16 +120,23 @@ class _Contenido extends StatelessWidget {
                   children: [
                     _Encabezado(cliente: cliente),
                     const SizedBox(height: Espacio.m),
-                    GrillaAdaptable(anchoMinimo: 200, children: [
-                      Indicador(etiqueta: 'Trabajos', valor: '${ordenes.length}', icono: Icons.build_outlined),
-                      Indicador(etiqueta: 'Total facturado', valor: Formato.moneda(facturado), icono: Icons.receipt_long_outlined),
-                      Indicador(
-                        etiqueta: 'Saldo pendiente',
-                        valor: Formato.moneda(deuda),
-                        icono: Icons.account_balance_wallet_outlined,
-                        color: deuda > 0 ? context.colores.peligro : context.colores.exito,
-                      ),
-                    ]),
+                    GrillaAdaptable(
+                      anchoMinimo: 200,
+                      children: [
+                        Indicador(etiqueta: 'Trabajos', valor: '${ordenes.length}', icono: Icons.build_outlined),
+                        Indicador(
+                          etiqueta: 'Total facturado',
+                          valor: Formato.moneda(facturado),
+                          icono: Icons.receipt_long_outlined,
+                        ),
+                        Indicador(
+                          etiqueta: 'Saldo pendiente',
+                          valor: Formato.moneda(deuda),
+                          icono: Icons.account_balance_wallet_outlined,
+                          color: deuda > 0 ? context.colores.peligro : context.colores.exito,
+                        ),
+                      ],
+                    ),
                     Seccion('Trabajos'),
                     if (so.hasError)
                       const EstadoError()
@@ -136,8 +157,13 @@ class _Contenido extends StatelessWidget {
                       'Presupuestos',
                       accion: TextButton.icon(
                         onPressed: () async {
-                          final p = await abrirFormulario<Presupuesto>(context, PresupuestoForm(clienteInicial: cliente));
-                          if (p != null && context.mounted) abrirPagina(context, PresupuestoDetallePage(presupuestoId: p.id));
+                          final p = await abrirFormulario<Presupuesto>(
+                            context,
+                            PresupuestoForm(clienteInicial: cliente),
+                          );
+                          if (p != null && context.mounted) {
+                            abrirPagina(context, PresupuestoDetallePage(presupuestoId: p.id));
+                          }
                         },
                         icon: const Icon(Icons.add_rounded, size: 18),
                         label: const Text('Nuevo'),
@@ -180,9 +206,9 @@ class _Vacio extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: Espacio.l),
-        child: Text(texto, style: TextStyle(color: context.esquema.onSurfaceVariant)),
-      );
+    padding: const EdgeInsets.symmetric(vertical: Espacio.l),
+    child: Text(texto, style: TextStyle(color: context.esquema.onSurfaceVariant)),
+  );
 }
 
 class _Encabezado extends StatelessWidget {
@@ -228,11 +254,14 @@ class _Encabezado extends StatelessWidget {
               runSpacing: Espacio.s,
               children: [
                 for (final d in datos)
-                  Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(d.$1, size: 16, color: context.esquema.onSurfaceVariant),
-                    const SizedBox(width: 6),
-                    SelectableText(d.$2),
-                  ]),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(d.$1, size: 16, color: context.esquema.onSurfaceVariant),
+                      const SizedBox(width: 6),
+                      SelectableText(d.$2),
+                    ],
+                  ),
               ],
             ),
           ],
@@ -249,7 +278,9 @@ class _Encabezado extends StatelessWidget {
                 FilledButton.tonalIcon(
                   onPressed: () async {
                     final ok = await WhatsApp.enviar(cliente.telefono, 'Hola ${cliente.nombre.split(' ').first}! ');
-                    if (!ok && context.mounted) mostrarMensaje(context, 'El teléfono no parece válido para WhatsApp', error: true);
+                    if (!ok && context.mounted) {
+                      mostrarMensaje(context, 'El teléfono no parece válido para WhatsApp', error: true);
+                    }
                   },
                   icon: const Icon(Icons.chat_outlined),
                   label: const Text('WhatsApp'),

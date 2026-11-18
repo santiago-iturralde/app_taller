@@ -186,7 +186,8 @@ class _Detalle extends StatelessWidget {
               ),
               if (orden.estado != EstadoOrden.cancelado)
                 const PopupMenuItem(value: 'cancelar', child: ListTile(leading: Icon(Icons.block_rounded), title: Text('Cancelar trabajo'))),
-              const PopupMenuItem(value: 'eliminar', child: ListTile(leading: Icon(Icons.delete_outline), title: Text('Eliminar'))),
+              if (Sesion.of(context).puede(Permiso.eliminarRegistros))
+                const PopupMenuItem(value: 'eliminar', child: ListTile(leading: Icon(Icons.delete_outline), title: Text('Eliminar'))),
             ],
           ),
         ],

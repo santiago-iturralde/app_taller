@@ -96,7 +96,7 @@ class FilaPago extends StatelessWidget {
               ),
               if (p.ordenId != null && mostrarCliente)
                 const PopupMenuItem(value: 'trabajo', child: ListTile(leading: Icon(Icons.build_outlined), title: Text('Ver trabajo'))),
-              if (!p.anulado)
+              if (!p.anulado && Sesion.of(context).puede(Permiso.anularCobros))
                 const PopupMenuItem(value: 'anular', child: ListTile(leading: Icon(Icons.block_rounded), title: Text('Anular cobro'))),
             ],
           ),

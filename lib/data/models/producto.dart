@@ -120,6 +120,7 @@ class MovimientoStock {
     required this.fecha,
     this.stockResultante = 0,
     this.referencia = '',
+    this.usuarioEmail = '',
   });
 
   final String id;
@@ -132,6 +133,9 @@ class MovimientoStock {
   final double stockResultante;
   final String referencia;
 
+  /// Quién hizo el movimiento.
+  final String usuarioEmail;
+
   factory MovimientoStock.fromMap(String id, Map<String, dynamic> m) => MovimientoStock(
         id: id,
         productoId: leerTexto(m['productoId']),
@@ -140,6 +144,7 @@ class MovimientoStock {
         fecha: leerFecha(m['fecha']) ?? DateTime.now(),
         stockResultante: leerDouble(m['stockResultante']),
         referencia: leerTexto(m['referencia']),
+        usuarioEmail: leerTexto(m['usuarioEmail']),
       );
 }
 

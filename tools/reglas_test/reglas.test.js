@@ -23,6 +23,9 @@ const ANA = 'ana';
 const BETO = 'beto';
 
 const dbDe = (uid) => env.authenticatedContext(uid).firestore();
+/** Usuario con email (verificado o no) en el token. */
+const dbConEmail = (uid, email, verificado = true) =>
+  env.authenticatedContext(uid, { email, email_verified: verificado }).firestore();
 const anonimo = () => env.unauthenticatedContext().firestore();
 
 /** Crea el negocio de [uid] como lo hace la app (lote negocio + miembro). */
@@ -199,7 +202,9 @@ describe('Catálogo y stock', () => {
     const db = dbDe(ANA);
     await assertSucceeds(setDoc(doc(db, `negocios/${ANA}/productos/p1`), producto));
     await assertSucceeds(updateDoc(doc(db, `negocios/${ANA}/productos/p1`), { stock: 6 }));
-    await assertSucceeds(setDoc(doc(db, `negocios/${ANA}/movimientosStock/m1`), { productoId: 'p1', cantidad: -4 }));
+    await assertSucceeds(setDoc(doc(db, `negocios/${ANA}/movimientosStock/m1`), { productoId: 'p1', cantidad: -4, usuarioUid: ANA }));
+    // El movimiento tiene que estar firmado por quien lo hace.
+    await assertFails(setDoc(doc(db, `negocios/${ANA}/movimientosStock/m2`), { productoId: 'p1', cantidad: -4, usuarioUid: BETO }));
   });
 
   test('producto sin nombre o con precio negativo se rechaza', async () => {
@@ -218,6 +223,195 @@ describe('Catálogo y stock', () => {
   test('otro negocio no ve el catálogo', async () => {
     await comoAdmin((db) => setDoc(doc(db, `negocios/${ANA}/productos/p1`), producto));
     await assertFails(getDoc(doc(dbDe(BETO), `negocios/${ANA}/productos/p1`)));
+  });
+});
+
+describe('Invitaciones al equipo', () => {
+  const CARLA = 'carla';
+  const EMAIL_CARLA = 'carla@taller.com';
+  const enUnaSemana = () => new Date(Date.now() + 7 * 24 * 3600 * 1000);
+  const idInv = (email = EMAIL_CARLA) => `${ANA}_${email}`;
+  const invitacion = (extra = {}) => ({
+    negocioId: ANA,
+    negocioNombre: 'Taller de prueba',
+    email: EMAIL_CARLA,
+    rol: 'empleado',
+    creadoPor: ANA,
+    vence: enUnaSemana(),
+    ...extra,
+  });
+  const hacerPro = () => comoAdmin((db) => updateDoc(doc(db, `negocios/${ANA}`), { plan: 'pro' }));
+
+  /** Carla acepta: se da de alta, consume la invitación y fija su negocio. */
+  async function aceptar(db, rol = 'empleado') {
+    const batch = writeBatch(db);
+    batch.set(doc(db, `negocios/${ANA}/miembros/${CARLA}`), { rol, email: EMAIL_CARLA, desde: serverTimestamp() });
+    batch.delete(doc(db, `invitaciones/${idInv()}`));
+    batch.set(doc(db, `users/${CARLA}`), { negocioId: ANA }, { merge: true });
+    return batch.commit();
+  }
+
+  beforeEach(() => crearNegocio(ANA));
+
+  test('con plan gratis no se puede invitar (es función PRO)', async () => {
+    await assertFails(setDoc(doc(dbDe(ANA), `invitaciones/${idInv()}`), invitacion()));
+  });
+
+  test('el dueño PRO invita; el ID tiene que coincidir con negocio y email', async () => {
+    await hacerPro();
+    const db = dbDe(ANA);
+    await assertSucceeds(setDoc(doc(db, `invitaciones/${idInv()}`), invitacion()));
+    await assertFails(setDoc(doc(db, `invitaciones/otro_id`), invitacion({ email: 'x@y.com' })));
+    await assertFails(setDoc(doc(db, `invitaciones/${idInv('MAYUS@Y.COM')}`), invitacion({ email: 'MAYUS@Y.COM' })));
+  });
+
+  test('no se puede invitar como dueño ni con vencimiento largo', async () => {
+    await hacerPro();
+    const db = dbDe(ANA);
+    await assertFails(setDoc(doc(db, `invitaciones/${idInv()}`), invitacion({ rol: 'owner' })));
+    await assertFails(setDoc(doc(db, `invitaciones/${idInv()}`), invitacion({ vence: new Date(2099, 0, 1) })));
+  });
+
+  test('un admin invita empleados pero no administradores', async () => {
+    await hacerPro();
+    await comoAdmin((db) => setDoc(doc(db, `negocios/${ANA}/miembros/${BETO}`), { rol: 'admin' }));
+    const db = dbDe(BETO);
+    await assertSucceeds(setDoc(doc(db, `invitaciones/${idInv()}`), invitacion({ creadoPor: BETO })));
+    await assertFails(
+      setDoc(doc(db, `invitaciones/${idInv('otro@x.com')}`), invitacion({ email: 'otro@x.com', rol: 'admin', creadoPor: BETO })),
+    );
+  });
+
+  test('un empleado no puede invitar', async () => {
+    await hacerPro();
+    await comoAdmin((db) => setDoc(doc(db, `negocios/${ANA}/miembros/${BETO}`), { rol: 'empleado' }));
+    await assertFails(setDoc(doc(dbDe(BETO), `invitaciones/${idInv()}`), invitacion({ creadoPor: BETO })));
+  });
+
+  test('sin email verificado no se ve ni se acepta la invitación', async () => {
+    await comoAdmin((db) => setDoc(doc(db, `invitaciones/${idInv()}`), invitacion()));
+    const db = dbConEmail(CARLA, EMAIL_CARLA, false);
+    await assertFails(getDoc(doc(db, `invitaciones/${idInv()}`)));
+    await assertFails(aceptar(db));
+  });
+
+  test('con email verificado la acepta y queda como empleado', async () => {
+    await comoAdmin((db) => setDoc(doc(db, `invitaciones/${idInv()}`), invitacion()));
+    const db = dbConEmail(CARLA, EMAIL_CARLA);
+    await assertSucceeds(getDoc(doc(db, `invitaciones/${idInv()}`)));
+    await assertSucceeds(aceptar(db));
+    await assertSucceeds(getDoc(doc(db, `negocios/${ANA}`)));
+  });
+
+  test('no se puede aceptar con un rol distinto al invitado', async () => {
+    await comoAdmin((db) => setDoc(doc(db, `invitaciones/${idInv()}`), invitacion()));
+    await assertFails(aceptar(dbConEmail(CARLA, EMAIL_CARLA), 'admin'));
+  });
+
+  test('otra persona no puede usar la invitación de Carla', async () => {
+    await comoAdmin((db) => setDoc(doc(db, `invitaciones/${idInv()}`), invitacion()));
+    const intruso = dbConEmail(BETO, 'beto@x.com');
+    await assertFails(getDoc(doc(intruso, `invitaciones/${idInv()}`)));
+    await assertFails(setDoc(doc(intruso, `negocios/${ANA}/miembros/${BETO}`), { rol: 'empleado', email: 'beto@x.com' }));
+  });
+
+  test('una invitación vencida no sirve', async () => {
+    await comoAdmin((db) => setDoc(doc(db, `invitaciones/${idInv()}`), invitacion({ vence: new Date(2020, 0, 1) })));
+    await assertFails(aceptar(dbConEmail(CARLA, EMAIL_CARLA)));
+  });
+
+  test('no se pueden agregar campos extra al darse de alta', async () => {
+    await comoAdmin((db) => setDoc(doc(db, `invitaciones/${idInv()}`), invitacion()));
+    const db = dbConEmail(CARLA, EMAIL_CARLA);
+    await assertFails(setDoc(doc(db, `negocios/${ANA}/miembros/${CARLA}`), { rol: 'empleado', email: EMAIL_CARLA, superusuario: true }));
+  });
+});
+
+describe('Permisos de empleados', () => {
+  beforeEach(async () => {
+    await crearNegocio(ANA);
+    await comoAdmin(async (db) => {
+      await setDoc(doc(db, `negocios/${ANA}/miembros/${BETO}`), { rol: 'empleado' });
+      await setDoc(doc(db, `negocios/${ANA}/clientes/c1`), { nombre: 'Cliente' });
+      await setDoc(doc(db, `negocios/${ANA}/gastos/g1`), { descripcion: 'Alquiler', monto: 1000 });
+      await setDoc(doc(db, `negocios/${ANA}/pagos/p1`), { numero: 1, monto: 500, anulado: false });
+      await setDoc(doc(db, `negocios/${ANA}/productos/pr1`), { nombre: 'Aceite', precio: 9000, stock: 10 });
+    });
+  });
+
+  test('trabaja el día a día', async () => {
+    const db = dbDe(BETO);
+    await assertSucceeds(setDoc(doc(db, `negocios/${ANA}/clientes/c2`), { nombre: 'Nuevo' }));
+    await assertSucceeds(setDoc(doc(db, `negocios/${ANA}/pagos/p2`), { numero: 2, monto: 100, anulado: false }));
+    await assertSucceeds(updateDoc(doc(db, `negocios/${ANA}/productos/pr1`), { stock: 6, stockBajo: false }));
+  });
+
+  test('no ve gastos', async () => {
+    await assertFails(getDoc(doc(dbDe(BETO), `negocios/${ANA}/gastos/g1`)));
+  });
+
+  test('no borra clientes ni anula cobros', async () => {
+    const db = dbDe(BETO);
+    await assertFails(deleteDoc(doc(db, `negocios/${ANA}/clientes/c1`)));
+    await assertFails(updateDoc(doc(db, `negocios/${ANA}/pagos/p1`), { anulado: true }));
+  });
+
+  test('no puede crear un cobro ya anulado', async () => {
+    await assertFails(setDoc(doc(dbDe(BETO), `negocios/${ANA}/pagos/p3`), { numero: 3, monto: 100, anulado: true }));
+  });
+
+  test('no cambia precios del catálogo ni crea productos', async () => {
+    const db = dbDe(BETO);
+    await assertFails(updateDoc(doc(db, `negocios/${ANA}/productos/pr1`), { precio: 1 }));
+    await assertFails(setDoc(doc(db, `negocios/${ANA}/productos/pr2`), { nombre: 'X', precio: 1, stock: 0 }));
+  });
+
+  test('no puede cambiarse el rol a sí mismo', async () => {
+    await assertFails(updateDoc(doc(dbDe(BETO), `negocios/${ANA}/miembros/${BETO}`), { rol: 'admin' }));
+    await assertFails(updateDoc(doc(dbDe(BETO), `negocios/${ANA}/miembros/${BETO}`), { rol: 'owner' }));
+  });
+
+  test('puede irse del negocio', async () => {
+    await assertSucceeds(deleteDoc(doc(dbDe(BETO), `negocios/${ANA}/miembros/${BETO}`)));
+  });
+});
+
+describe('Gestión del equipo', () => {
+  const DIEGO = 'diego';
+
+  beforeEach(async () => {
+    await crearNegocio(ANA);
+    await comoAdmin(async (db) => {
+      await setDoc(doc(db, `negocios/${ANA}/miembros/${BETO}`), { rol: 'admin' });
+      await setDoc(doc(db, `negocios/${ANA}/miembros/${DIEGO}`), { rol: 'empleado' });
+    });
+  });
+
+  test('el dueño cambia roles entre admin y empleado, nunca a dueño', async () => {
+    const db = dbDe(ANA);
+    await assertSucceeds(updateDoc(doc(db, `negocios/${ANA}/miembros/${DIEGO}`), { rol: 'admin' }));
+    await assertFails(updateDoc(doc(db, `negocios/${ANA}/miembros/${DIEGO}`), { rol: 'owner' }));
+  });
+
+  test('un admin no cambia roles', async () => {
+    await assertFails(updateDoc(doc(dbDe(BETO), `negocios/${ANA}/miembros/${DIEGO}`), { rol: 'admin' }));
+  });
+
+  test('un admin quita empleados pero no a otros admins ni al dueño', async () => {
+    const db = dbDe(BETO);
+    await comoAdmin((d) => setDoc(doc(d, `negocios/${ANA}/miembros/otroadmin`), { rol: 'admin' }));
+    await assertFails(deleteDoc(doc(db, `negocios/${ANA}/miembros/otroadmin`)));
+    await assertFails(deleteDoc(doc(db, `negocios/${ANA}/miembros/${ANA}`)));
+    await assertSucceeds(deleteDoc(doc(db, `negocios/${ANA}/miembros/${DIEGO}`)));
+  });
+
+  test('el dueño no puede quitarse a sí mismo', async () => {
+    await assertFails(deleteDoc(doc(dbDe(ANA), `negocios/${ANA}/miembros/${ANA}`)));
+  });
+
+  test('un miembro quitado pierde el acceso', async () => {
+    await comoAdmin((db) => deleteDoc(doc(db, `negocios/${ANA}/miembros/${DIEGO}`)));
+    await assertFails(getDoc(doc(dbDe(DIEGO), `negocios/${ANA}`)));
   });
 });
 

@@ -11,8 +11,9 @@ import '../data/db.dart';
 import '../data/migracion_legacy.dart';
 import '../data/models/negocio.dart';
 import '../features/auth/auth_page.dart';
+import '../data/repositories/equipo_repository.dart';
+import '../features/onboarding/bienvenida_page.dart';
 import '../features/onboarding/migracion_page.dart';
-import '../features/onboarding/onboarding_page.dart';
 import 'app_info.dart';
 import 'sesion.dart';
 import 'shell.dart';
@@ -53,18 +54,38 @@ class _ResolverNegocioState extends State<_ResolverNegocio> {
   _Paso _paso = _Paso.cargando;
   StreamSubscription<DocumentSnapshot<Json>>? _version;
   bool _avisoMostrado = false;
+  SesionController? _controller;
 
   @override
   void initState() {
     super.initState();
     _resolver();
     _vigilarVersion();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _controller = SesionScope.controller(context)..addListener(_alCambiarSesion);
+    });
   }
 
   @override
   void dispose() {
+    _controller?.removeListener(_alCambiarSesion);
     _version?.cancel();
     super.dispose();
+  }
+
+  /// Si al usuario lo quitan del equipo mientras usa la app, se le avisa
+  /// en lugar de dejarlo en pantallas sin permisos.
+  void _alCambiarSesion() {
+    if ((_controller?.accesoPerdido ?? false) && _paso == _Paso.listo && mounted) {
+      Navigator.of(context).popUntil((r) => r.isFirst);
+      setState(() => _paso = _Paso.sinAcceso);
+    }
+  }
+
+  Future<void> _desvincular() async {
+    await MisInvitaciones().olvidarNegocio(widget.usuario.uid);
+    _resolver();
   }
 
   Future<void> _resolver() async {
@@ -82,7 +103,14 @@ class _ResolverNegocioState extends State<_ResolverNegocio> {
       }
 
       final db = Db(negocioId);
-      final miembro = await db.miembros.doc(uid).get();
+      DocumentSnapshot<Json> miembro;
+      try {
+        miembro = await db.miembros.doc(uid).get();
+      } on FirebaseException catch (e) {
+        if (e.code != 'permission-denied') rethrow;
+        if (mounted) setState(() => _paso = _Paso.sinAcceso);
+        return;
+      }
       if (!miembro.exists) {
         if (mounted) setState(() => _paso = _Paso.sinAcceso);
         return;
@@ -132,13 +160,14 @@ class _ResolverNegocioState extends State<_ResolverNegocio> {
   Widget build(BuildContext context) {
     return switch (_paso) {
       _Paso.cargando => const _Splash(),
-      _Paso.alta => OnboardingPage(usuario: widget.usuario, onListo: _resolver),
+      _Paso.alta => BienvenidaPage(usuario: widget.usuario, onListo: _resolver),
       _Paso.migracion => MigracionPage(usuario: widget.usuario, onListo: _resolver),
       _Paso.listo => const Shell(),
       _Paso.sinAcceso => _Mensaje(
-          titulo: 'Sin acceso al negocio',
-          mensaje: 'Tu usuario ya no es miembro del negocio. Pedile al dueño que te vuelva a invitar.',
-          onReintentar: _resolver,
+          titulo: 'Ya no tenés acceso a este negocio',
+          mensaje: 'Tu usuario dejó de ser parte del equipo. Podés aceptar otra invitación o crear tu propio negocio.',
+          textoAccion: 'Continuar',
+          onReintentar: _desvincular,
         ),
       _Paso.error => _Mensaje(
           titulo: 'No pudimos conectarnos',
@@ -157,10 +186,11 @@ class _Splash extends StatelessWidget {
 }
 
 class _Mensaje extends StatelessWidget {
-  const _Mensaje({required this.titulo, required this.mensaje, required this.onReintentar});
+  const _Mensaje({required this.titulo, required this.mensaje, required this.onReintentar, this.textoAccion = 'Reintentar'});
   final String titulo;
   final String mensaje;
   final VoidCallback onReintentar;
+  final String textoAccion;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -169,7 +199,7 @@ class _Mensaje extends StatelessWidget {
           titulo: titulo,
           mensaje: mensaje,
           accion: Wrap(spacing: 8, children: [
-            FilledButton(onPressed: onReintentar, child: const Text('Reintentar')),
+            FilledButton(onPressed: onReintentar, child: Text(textoAccion)),
             TextButton(onPressed: () => FirebaseAuth.instance.signOut(), child: const Text('Salir')),
           ]),
         ),

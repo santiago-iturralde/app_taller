@@ -15,6 +15,7 @@ import '../features/reportes/reportes_page.dart';
 import '../features/trabajos/trabajos_page.dart';
 import 'preferencias.dart';
 import 'sesion.dart';
+import '../data/models/negocio.dart';
 
 enum _Seccion {
   inicio('Inicio', Icons.space_dashboard_outlined, Icons.space_dashboard_rounded),
@@ -50,25 +51,25 @@ class _ShellState extends State<Shell> {
   EstadoOrden? _filtroTrabajos;
 
   void _irATrabajos(EstadoOrden? filtro) => setState(() {
-        _filtroTrabajos = filtro;
-        _actual = _Seccion.trabajos;
-      });
+    _filtroTrabajos = filtro;
+    _actual = _Seccion.trabajos;
+  });
 
   Widget _pagina(_Seccion s) => switch (s) {
-        _Seccion.inicio => InicioPage(irATrabajos: _irATrabajos),
-        _Seccion.trabajos => TrabajosPage(key: ValueKey(_filtroTrabajos), filtroInicial: _filtroTrabajos),
-        _Seccion.clientes => const ClientesPage(),
-        _Seccion.presupuestos => const PresupuestosPage(),
-        _Seccion.productos => const ProductosPage(),
-        _Seccion.caja => const CajaPage(),
-        _Seccion.reportes => const ReportesPage(),
-        _Seccion.ajustes => const AjustesPage(),
-      };
+    _Seccion.inicio => InicioPage(irATrabajos: _irATrabajos),
+    _Seccion.trabajos => TrabajosPage(key: ValueKey(_filtroTrabajos), filtroInicial: _filtroTrabajos),
+    _Seccion.clientes => const ClientesPage(),
+    _Seccion.presupuestos => const PresupuestosPage(),
+    _Seccion.productos => const ProductosPage(),
+    _Seccion.caja => const CajaPage(),
+    _Seccion.reportes => const ReportesPage(),
+    _Seccion.ajustes => const AjustesPage(),
+  };
 
   void _seleccionar(_Seccion s) => setState(() {
-        if (s != _Seccion.trabajos) _filtroTrabajos = null;
-        _actual = s;
-      });
+    if (s != _Seccion.trabajos) _filtroTrabajos = null;
+    _actual = s;
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +90,9 @@ class _ShellState extends State<Shell> {
     return Scaffold(
       body: contenido,
       bottomNavigationBar: DecoratedBox(
-        decoration: BoxDecoration(border: Border(top: BorderSide(color: context.colores.borde))),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: context.colores.borde)),
+        ),
         child: NavigationBar(
           selectedIndex: indice < 0 ? _Seccion.movil.length : indice,
           onDestinationSelected: (i) {
@@ -118,7 +121,9 @@ class _ShellState extends State<Shell> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            for (final s in _Seccion.masMovil)
+            for (final s in _Seccion.masMovil.where(
+              (s) => s != _Seccion.reportes || Sesion.of(context).puede(Permiso.verReportes),
+            ))
               ListTile(
                 leading: Icon(s.icono),
                 title: Text(s.titulo),
@@ -183,36 +188,41 @@ class _BarraLateral extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.xl, Espacio.l, Espacio.l),
-              child: Row(children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Paleta.azul500, Paleta.azul700],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Paleta.azul500, Paleta.azul700],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(Radios.m),
                     ),
-                    borderRadius: BorderRadius.circular(Radios.m),
+                    child: Icon(negocio.rubro.icono, color: Colors.white, size: 22),
                   ),
-                  child: Icon(negocio.rubro.icono, color: Colors.white, size: 22),
-                ),
-                const SizedBox(width: Espacio.m),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(
-                      negocio.nombre,
-                      style: context.textos.titleSmall?.copyWith(color: c.lateralTexto),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  const SizedBox(width: Espacio.m),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          negocio.nombre,
+                          style: context.textos.titleSmall?.copyWith(color: c.lateralTexto),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          negocio.esPro ? 'Plan PRO' : 'Plan Gratis',
+                          style: context.textos.bodySmall?.copyWith(color: c.lateralTextoSuave),
+                        ),
+                      ],
                     ),
-                    Text(
-                      negocio.esPro ? 'Plan PRO' : 'Plan Gratis',
-                      style: context.textos.bodySmall?.copyWith(color: c.lateralTextoSuave),
-                    ),
-                  ]),
-                ),
-              ]),
+                  ),
+                ],
+              ),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Espacio.m),
@@ -228,7 +238,9 @@ class _BarraLateral extends StatelessWidget {
               child: ListView(
                 padding: EdgeInsets.zero,
                 children: [
-                  for (final s in _Seccion.values.where((s) => s != _Seccion.ajustes))
+                  for (final s in _Seccion.values.where(
+                    (s) => s != _Seccion.ajustes && (s != _Seccion.reportes || sesion.puede(Permiso.verReportes)),
+                  ))
                     _Item(
                       seccion: s,
                       activo: s == actual,
@@ -249,54 +261,64 @@ class _BarraLateral extends StatelessWidget {
                     onTap: () => abrirPagina(context, const PlanesPage()),
                     child: Padding(
                       padding: const EdgeInsets.all(Espacio.m),
-                      child: Row(children: [
-                        const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFBBF24)),
-                        const SizedBox(width: Espacio.s),
-                        Expanded(
-                          child: Text('Pasate a PRO',
-                              style: TextStyle(fontWeight: FontWeight.w700, color: c.lateralTexto)),
-                        ),
-                        Icon(Icons.chevron_right_rounded, size: 18, color: c.lateralTextoSuave),
-                      ]),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.workspace_premium_rounded, color: Color(0xFFFBBF24)),
+                          const SizedBox(width: Espacio.s),
+                          Expanded(
+                            child: Text(
+                              'Pasate a PRO',
+                              style: TextStyle(fontWeight: FontWeight.w700, color: c.lateralTexto),
+                            ),
+                          ),
+                          Icon(Icons.chevron_right_rounded, size: 18, color: c.lateralTextoSuave),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            _Item(seccion: _Seccion.ajustes, activo: actual == _Seccion.ajustes, onTap: () => onSeleccionar(_Seccion.ajustes)),
+            _Item(
+              seccion: _Seccion.ajustes,
+              activo: actual == _Seccion.ajustes,
+              onTap: () => onSeleccionar(_Seccion.ajustes),
+            ),
             Divider(color: c.lateralBorde, height: Espacio.l),
             Padding(
               padding: const EdgeInsets.fromLTRB(Espacio.l, 0, Espacio.s, Espacio.m),
-              child: Row(children: [
-                CircleAvatar(
-                  radius: 14,
-                  backgroundColor: Paleta.azul500.withValues(alpha: 0.25),
-                  child: Text(
-                    (sesion.usuario.email ?? '?').substring(0, 1).toUpperCase(),
-                    style: const TextStyle(color: Paleta.azul300, fontWeight: FontWeight.w700, fontSize: 12),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 14,
+                    backgroundColor: Paleta.azul500.withValues(alpha: 0.25),
+                    child: Text(
+                      (sesion.usuario.email ?? '?').substring(0, 1).toUpperCase(),
+                      style: const TextStyle(color: Paleta.azul300, fontWeight: FontWeight.w700, fontSize: 12),
+                    ),
                   ),
-                ),
-                const SizedBox(width: Espacio.s),
-                Expanded(
-                  child: Text(
-                    sesion.usuario.email ?? '',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.textos.bodySmall?.copyWith(color: c.lateralTextoSuave),
+                  const SizedBox(width: Espacio.s),
+                  Expanded(
+                    child: Text(
+                      sesion.usuario.email ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.textos.bodySmall?.copyWith(color: c.lateralTextoSuave),
+                    ),
                   ),
-                ),
-                IconButton(
-                  tooltip: oscuro ? 'Modo claro' : 'Modo oscuro',
-                  color: c.lateralTextoSuave,
-                  icon: Icon(oscuro ? Icons.light_mode_outlined : Icons.dark_mode_outlined, size: 20),
-                  onPressed: () => prefs.cambiarTema(oscuro ? ThemeMode.light : ThemeMode.dark),
-                ),
-                IconButton(
-                  tooltip: 'Cerrar sesión',
-                  color: c.lateralTextoSuave,
-                  icon: const Icon(Icons.logout_rounded, size: 20),
-                  onPressed: () => cerrarSesion(context),
-                ),
-              ]),
+                  IconButton(
+                    tooltip: oscuro ? 'Modo claro' : 'Modo oscuro',
+                    color: c.lateralTextoSuave,
+                    icon: Icon(oscuro ? Icons.light_mode_outlined : Icons.dark_mode_outlined, size: 20),
+                    onPressed: () => prefs.cambiarTema(oscuro ? ThemeMode.light : ThemeMode.dark),
+                  ),
+                  IconButton(
+                    tooltip: 'Cerrar sesión',
+                    color: c.lateralTextoSuave,
+                    icon: const Icon(Icons.logout_rounded, size: 20),
+                    onPressed: () => cerrarSesion(context),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -327,20 +349,22 @@ class _Item extends StatelessWidget {
           onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: Espacio.m, vertical: 11),
-            child: Row(children: [
-              Icon(activo ? seccion.iconoActivo : seccion.icono, color: color, size: 22),
-              const SizedBox(width: Espacio.m),
-              Expanded(
-                child: Text(
-                  seccion.titulo,
-                  style: context.textos.bodyMedium?.copyWith(
-                    color: activo ? Colors.white : c.lateralTexto,
-                    fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
+            child: Row(
+              children: [
+                Icon(activo ? seccion.iconoActivo : seccion.icono, color: color, size: 22),
+                const SizedBox(width: Espacio.m),
+                Expanded(
+                  child: Text(
+                    seccion.titulo,
+                    style: context.textos.bodyMedium?.copyWith(
+                      color: activo ? Colors.white : c.lateralTexto,
+                      fontWeight: activo ? FontWeight.w700 : FontWeight.w500,
+                    ),
                   ),
                 ),
-              ),
-              if (extra != null) extra!,
-            ]),
+                if (extra != null) extra!,
+              ],
+            ),
           ),
         ),
       ),

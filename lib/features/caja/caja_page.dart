@@ -7,6 +7,7 @@ import '../../core/widgets/campos.dart';
 import '../../core/widgets/componentes.dart';
 import '../../core/widgets/feedback.dart';
 import '../../data/models/caja.dart';
+import '../../data/models/negocio.dart';
 import 'venta_form.dart';
 import 'gasto_form.dart';
 import 'widgets_caja.dart';
@@ -32,18 +33,74 @@ class _CajaPageState extends State<CajaPage> with SingleTickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
-    final caja = Sesion.of(context).caja;
-    final esCobros = _tabs.index == 0;
+    final sesion = Sesion.of(context);
+    final caja = sesion.caja;
+    // Los empleados registran cobros pero no ven gastos ni totales.
+    final verGastos = sesion.puede(Permiso.verGastos);
+    final verTotales = sesion.puede(Permiso.verTotalesCaja);
+    final esCobros = !verGastos || _tabs.index == 0;
+
+    final cobros = StreamBuilder<List<Pago>>(
+      stream: caja.pagosDelMes(_mes),
+      builder: (context, s) {
+        if (s.hasError) return EstadoError(error: s.error);
+        if (!s.hasData) return const Cargando();
+        final pagos = s.data!;
+        final validos = pagos.where((p) => p.cuentaEnCaja);
+        return _Lista(
+          resumen: verTotales
+              ? _Resumen(
+                  etiqueta: 'Cobrado en ${Formato.mes(_mes).toLowerCase()}',
+                  total: validos.fold(0.0, (a, p) => a + p.monto),
+                  cantidad: validos.length,
+                  color: context.colores.exito,
+                )
+              : null,
+          vacio: const EstadoVacio(
+            icono: Icons.payments_outlined,
+            titulo: 'Sin cobros este mes',
+            mensaje: 'Los cobros de trabajos y las ventas sueltas aparecen acá con su número de recibo.',
+          ),
+          children: [for (final p in pagos) FilaPago(pago: p)],
+        );
+      },
+    );
+
+    final gastos = StreamBuilder<List<Gasto>>(
+      stream: verGastos ? caja.gastosDelMes(_mes) : const Stream.empty(),
+      builder: (context, s) {
+        if (s.hasError) return EstadoError(error: s.error);
+        if (!s.hasData) return const Cargando();
+        final gastos = s.data!;
+        return _Lista(
+          resumen: _Resumen(
+            etiqueta: 'Gastado en ${Formato.mes(_mes).toLowerCase()}',
+            total: gastos.fold(0.0, (a, g) => a + g.monto),
+            cantidad: gastos.length,
+            color: context.colores.peligro,
+          ),
+          vacio: const EstadoVacio(
+            icono: Icons.receipt_outlined,
+            titulo: 'Sin gastos este mes',
+            mensaje: 'Registrá compras de repuestos, alquiler, servicios… para conocer tu ganancia real.',
+          ),
+          children: [for (final g in gastos) _FilaGasto(gasto: g)],
+        );
+      },
+    );
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Caja'),
-        bottom: TabBar(
-          controller: _tabs,
-          tabs: const [
-            Tab(text: 'Cobros', icon: Icon(Icons.south_west_rounded, size: 20), iconMargin: EdgeInsets.only(bottom: 2)),
-            Tab(text: 'Gastos', icon: Icon(Icons.north_east_rounded, size: 20), iconMargin: EdgeInsets.only(bottom: 2)),
-          ],
-        ),
+        title: Text(verGastos ? 'Caja' : 'Cobros'),
+        bottom: verGastos
+            ? TabBar(
+                controller: _tabs,
+                tabs: const [
+                  Tab(text: 'Cobros', icon: Icon(Icons.south_west_rounded, size: 20), iconMargin: EdgeInsets.only(bottom: 2)),
+                  Tab(text: 'Gastos', icon: Icon(Icons.north_east_rounded, size: 20), iconMargin: EdgeInsets.only(bottom: 2)),
+                ],
+              )
+            : null,
       ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'fab-caja',
@@ -60,47 +117,7 @@ class _CajaPageState extends State<CajaPage> with SingleTickerProviderStateMixin
               child: Center(child: SelectorMes(mes: _mes, onCambio: (m) => setState(() => _mes = m))),
             ),
             Expanded(
-              child: TabBarView(
-                controller: _tabs,
-                children: [
-                  StreamBuilder<List<Pago>>(
-                    stream: caja.pagosDelMes(_mes),
-                    builder: (context, s) {
-                      if (s.hasError) return EstadoError(error: s.error);
-                      if (!s.hasData) return const Cargando();
-                      final pagos = s.data!;
-                      final total = pagos.where((p) => p.cuentaEnCaja).fold(0.0, (a, p) => a + p.monto);
-                      return _Lista(
-                        resumen: _Resumen(etiqueta: 'Cobrado en ${Formato.mes(_mes).toLowerCase()}', total: total, cantidad: pagos.where((p) => p.cuentaEnCaja).length, color: context.colores.exito),
-                        vacio: const EstadoVacio(
-                          icono: Icons.payments_outlined,
-                          titulo: 'Sin cobros este mes',
-                          mensaje: 'Los cobros de trabajos y las ventas sueltas aparecen acá con su número de recibo.',
-                        ),
-                        children: [for (final p in pagos) FilaPago(pago: p)],
-                      );
-                    },
-                  ),
-                  StreamBuilder<List<Gasto>>(
-                    stream: caja.gastosDelMes(_mes),
-                    builder: (context, s) {
-                      if (s.hasError) return EstadoError(error: s.error);
-                      if (!s.hasData) return const Cargando();
-                      final gastos = s.data!;
-                      final total = gastos.fold(0.0, (a, g) => a + g.monto);
-                      return _Lista(
-                        resumen: _Resumen(etiqueta: 'Gastado en ${Formato.mes(_mes).toLowerCase()}', total: total, cantidad: gastos.length, color: context.colores.peligro),
-                        vacio: const EstadoVacio(
-                          icono: Icons.receipt_outlined,
-                          titulo: 'Sin gastos este mes',
-                          mensaje: 'Registrá compras de repuestos, alquiler, servicios… para conocer tu ganancia real.',
-                        ),
-                        children: [for (final g in gastos) _FilaGasto(gasto: g)],
-                      );
-                    },
-                  ),
-                ],
-              ),
+              child: verGastos ? TabBarView(controller: _tabs, children: [cobros, gastos]) : cobros,
             ),
           ],
         ),
@@ -142,7 +159,7 @@ class _Resumen extends StatelessWidget {
 
 class _Lista extends StatelessWidget {
   const _Lista({required this.resumen, required this.vacio, required this.children});
-  final Widget resumen;
+  final Widget? resumen;
   final Widget vacio;
   final List<Widget> children;
 
@@ -151,8 +168,7 @@ class _Lista extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(Espacio.l, 0, Espacio.l, 96),
       children: [
-        resumen,
-        const SizedBox(height: Espacio.m),
+        if (resumen != null) ...[resumen!, const SizedBox(height: Espacio.m)],
         if (children.isEmpty)
           SizedBox(height: 320, child: vacio)
         else

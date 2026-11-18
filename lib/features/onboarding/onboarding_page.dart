@@ -11,9 +11,12 @@ import '../../data/models/rubro.dart';
 
 /// Primer uso: elegir el rubro y cargar los datos básicos del negocio.
 class OnboardingPage extends StatefulWidget {
-  const OnboardingPage({super.key, required this.usuario, required this.onListo});
+  const OnboardingPage({super.key, required this.usuario, required this.onListo, this.onVolver});
   final User usuario;
   final VoidCallback onListo;
+
+  /// Vuelve a la pantalla de bienvenida (si se llegó desde ahí).
+  final VoidCallback? onVolver;
 
   @override
   State<OnboardingPage> createState() => _OnboardingPageState();
@@ -65,7 +68,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Paso ${_paso + 1} de 2'),
-        leading: _paso == 1 ? IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => setState(() => _paso = 0)) : null,
+        leading: _paso == 1
+            ? IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => setState(() => _paso = 0))
+            : (widget.onVolver == null
+                ? null
+                : IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: widget.onVolver)),
         actions: [TextButton(onPressed: () => FirebaseAuth.instance.signOut(), child: const Text('Salir'))],
       ),
       body: SafeArea(

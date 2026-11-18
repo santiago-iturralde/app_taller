@@ -18,28 +18,37 @@ class ReportesPage extends StatefulWidget {
   State<ReportesPage> createState() => _ReportesPageState();
 }
 
+/// Todo lo que muestra la pantalla de un mes.
+typedef _Datos = ({ResumenMes mes, ResumenProductos productos, ValorInventario inventario});
+
 class _ReportesPageState extends State<ReportesPage> {
   DateTime _mes = DateTime(DateTime.now().year, DateTime.now().month);
-  Future<ResumenMes>? _datos;
+  Future<_Datos>? _datos;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Sin plan PRO no se consulta nada (evita lecturas innecesarias).
-    if (Sesion.of(context).negocio.permite(FuncionPro.reportes)) _datos ??= _cargar();
+    final sesion = Sesion.of(context);
+    if (sesion.puede(Permiso.verReportes) && sesion.negocio.permite(FuncionPro.reportes)) _datos ??= _cargar();
   }
 
-  Future<ResumenMes> _cargar() async {
+  Future<_Datos> _cargar() async {
     final s = Sesion.of(context);
     final r = rangoDelMes(_mes);
     final anterior = rangoDelMes(DateTime(_mes.year, _mes.month - 1));
-    final (pagos, pagosAnteriores, gastos, entregadas) = await (
+    final (pagos, pagosAnteriores, gastos, entregadas, productos) = await (
       s.caja.pagosEntre(r.desde, r.hasta),
       s.caja.pagosEntre(anterior.desde, anterior.hasta),
       s.caja.gastosEntre(r.desde, r.hasta),
       s.ordenes.entregadasEntre(r.desde, r.hasta),
+      s.productos.todos(),
     ).wait;
-    return ResumenMes(pagos: pagos, pagosMesAnterior: pagosAnteriores, gastos: gastos, entregadas: entregadas);
+    return (
+      mes: ResumenMes(pagos: pagos, pagosMesAnterior: pagosAnteriores, gastos: gastos, entregadas: entregadas),
+      productos: ResumenProductos(entregadas: entregadas, pagos: pagos),
+      inventario: ValorInventario(productos),
+    );
   }
 
   void _cambiarMes(DateTime m) => setState(() {
@@ -49,8 +58,14 @@ class _ReportesPageState extends State<ReportesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final negocio = Sesion.of(context).negocio;
-    if (!negocio.permite(FuncionPro.reportes)) return const _Bloqueado();
+    final sesion = Sesion.of(context);
+    if (!sesion.puede(Permiso.verReportes)) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Reportes')),
+        body: const EstadoVacio(icono: Icons.lock_outline_rounded, titulo: 'Sólo para administradores'),
+      );
+    }
+    if (!sesion.negocio.permite(FuncionPro.reportes)) return const _Bloqueado();
 
     return Scaffold(
       appBar: AppBar(
@@ -77,12 +92,15 @@ class _ReportesPageState extends State<ReportesPage> {
                 children: [
                   Center(child: SelectorMes(mes: _mes, onCambio: _cambiarMes)),
                   const SizedBox(height: Espacio.l),
-                  FutureBuilder<ResumenMes>(
+                  FutureBuilder<_Datos>(
                     future: _datos,
                     builder: (context, s) {
                       if (s.hasError) return EstadoError(error: s.error, onReintentar: () => _cambiarMes(_mes));
                       if (!s.hasData) return const SizedBox(height: 300, child: Cargando());
-                      return _Contenido(r: s.data!);
+                      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        _Contenido(r: s.data!.mes),
+                        _SeccionProductos(productos: s.data!.productos, inventario: s.data!.inventario),
+                      ]);
                     },
                   ),
                 ],
@@ -235,6 +253,117 @@ class _Bloqueado extends StatelessWidget {
           label: const Text('Conocer el plan PRO'),
         ),
       ),
+    );
+  }
+}
+
+/// Ganancia por productos/servicios, inventario y ranking de lo más vendido.
+class _SeccionProductos extends StatelessWidget {
+  const _SeccionProductos({required this.productos, required this.inventario});
+  final ResumenProductos productos;
+  final ValorInventario inventario;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colores;
+    final margen = productos.margen;
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      const Seccion('Productos y servicios'),
+      GrillaAdaptable(anchoMinimo: 250, children: [
+        Indicador(
+          etiqueta: 'Ganancia bruta',
+          valor: Formato.moneda(productos.gananciaBruta),
+          icono: Icons.savings_outlined,
+          color: c.exito,
+          detalle: margen == null
+              ? 'Cargá el costo de tus productos para verla'
+              : 'Margen ${margen.toStringAsFixed(0)}% sobre ${Formato.moneda(productos.facturadoConCosto)}',
+        ),
+        Indicador(
+          etiqueta: 'Inventario (al costo)',
+          valor: Formato.moneda(inventario.alCosto),
+          icono: Icons.inventory_2_outlined,
+          color: c.info,
+          detalle: 'A precio de venta: ${Formato.moneda(inventario.aPrecioDeVenta)}',
+        ),
+        Indicador(
+          etiqueta: 'Productos con stock bajo',
+          valor: '${inventario.conStockBajo}',
+          icono: Icons.warning_amber_rounded,
+          color: inventario.conStockBajo > 0 ? c.alerta : c.exito,
+          detalle: inventario.productosSinCosto > 0
+              ? '${inventario.productosSinCosto} con stock sin costo cargado'
+              : '${Formato.cantidad(inventario.unidades)} unidades en stock',
+        ),
+      ]),
+      const SizedBox(height: Espacio.l),
+      _Ranking(productos: productos),
+    ]);
+  }
+}
+
+class _Ranking extends StatelessWidget {
+  const _Ranking({required this.productos});
+  final ResumenProductos productos;
+
+  static const _maximo = 12;
+
+  @override
+  Widget build(BuildContext context) {
+    final filas = productos.ranking.take(_maximo).toList();
+    final secundario = context.textos.bodySmall?.copyWith(color: context.esquema.onSurfaceVariant);
+    return AppCard(
+      padding: const EdgeInsets.all(Espacio.xl),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text('Lo más vendido del mes', style: context.textos.titleSmall),
+        Text('Trabajos entregados y ventas de mostrador', style: secundario),
+        const SizedBox(height: Espacio.l),
+        if (filas.isEmpty)
+          Text('Sin ventas en el mes', style: TextStyle(color: context.esquema.onSurfaceVariant))
+        else ...[
+          Row(children: [
+            Expanded(child: Text('Producto / servicio', style: secundario)),
+            SizedBox(width: 64, child: Text('Cant.', style: secundario, textAlign: TextAlign.right)),
+            SizedBox(width: 110, child: Text('Facturado', style: secundario, textAlign: TextAlign.right)),
+            SizedBox(width: 72, child: Text('Margen', style: secundario, textAlign: TextAlign.right)),
+          ]),
+          const Divider(height: Espacio.l),
+          for (final v in filas)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Tooltip(
+                message: v.tieneCosto
+                    ? 'Ganancia: ${Formato.moneda(v.ganancia)}'
+                    : 'Sin costo cargado: no se puede calcular la ganancia',
+                child: Row(children: [
+                  Expanded(child: Text(v.descripcion, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  SizedBox(width: 64, child: Text(Formato.cantidad(v.cantidad), textAlign: TextAlign.right)),
+                  SizedBox(
+                    width: 110,
+                    child: Text(
+                      Formato.moneda(v.facturado),
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 72,
+                    child: Text(
+                      v.margen == null ? '—' : '${v.margen!.toStringAsFixed(0)}%',
+                      textAlign: TextAlign.right,
+                      style: secundario,
+                    ),
+                  ),
+                ]),
+              ),
+            ),
+          if (productos.ranking.length > _maximo)
+            Padding(
+              padding: const EdgeInsets.only(top: Espacio.s),
+              child: Text('Y ${productos.ranking.length - _maximo} más. El detalle completo está en la exportación a Excel.', style: secundario),
+            ),
+        ],
+      ]),
     );
   }
 }

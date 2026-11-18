@@ -14,4 +14,8 @@ abstract final class AppInfo {
   static const whatsappVentas = '';
 
   static const precioPro = r'$5.000';
+
+  /// Dirección pública de la app web (para los mensajes de invitación).
+  /// En la versión web se usa la dirección actual del navegador.
+  static const urlWeb = '';
 }
