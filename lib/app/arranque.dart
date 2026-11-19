@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_html/html.dart' as html;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/widgets/componentes.dart';
 import '../data/db.dart';
@@ -137,8 +138,9 @@ class _ResolverNegocioState extends State<_ResolverNegocio> {
     }
   }
 
-  /// En la web, si se publicó una versión nueva incompatible, pide recargar
-  /// para que nadie siga operando con código viejo.
+  /// Si se publicó una versión nueva incompatible, pide actualizar para que
+  /// nadie siga operando con código viejo: en la web recarga la página y en
+  /// el celular descarga la app nueva.
   void _vigilarVersion() {
     _version = FirebaseFirestore.instance.collection('configuracion').doc('app_info').snapshots().listen((s) {
       final version = (s.data()?['version'] as num?)?.toInt() ?? 0;
@@ -152,9 +154,18 @@ class _ResolverNegocioState extends State<_ResolverNegocio> {
             child: AlertDialog(
               icon: const Icon(Icons.system_update_alt_rounded, size: 40),
               title: const Text('Hay una nueva versión'),
-              content: const Text('Actualizá para seguir trabajando con las últimas mejoras.'),
+              content: Text(kIsWeb
+                  ? 'Actualizá para seguir trabajando con las últimas mejoras.'
+                  : 'Descargá e instalá la versión nueva. Tus datos no se pierden: están guardados en la nube.'),
               actions: [
-                if (kIsWeb) FilledButton(onPressed: () => html.window.location.reload(), child: const Text('Actualizar ahora')),
+                if (kIsWeb)
+                  FilledButton(onPressed: () => html.window.location.reload(), child: const Text('Actualizar ahora'))
+                else
+                  FilledButton.icon(
+                    onPressed: () => launchUrl(Uri.parse(AppInfo.urlApk), mode: LaunchMode.externalApplication),
+                    icon: const Icon(Icons.download_rounded),
+                    label: const Text('Descargar'),
+                  ),
               ],
             ),
           ),
