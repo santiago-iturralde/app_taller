@@ -154,11 +154,12 @@ void main() {
     expect(f.estado, EstadoFactura.autorizada);
   });
 
-  test('recibos del sistema anterior conservan su número', () {
-    final viejo = Pago.fromMap('p', {'numero': 0, 'monto': 500, 'numeroAnterior': '20250312-101530', 'excluirDeCaja': true});
+  test('recibos del talonario anterior: se marcan y conservan su número viejo', () {
+    final viejo = Pago.fromMap('p', {'numero': 3, 'monto': 500, 'numeroAnterior': '20250312-101530', 'excluirDeCaja': true});
     expect(viejo.delSistemaAnterior, isTrue);
+    expect(viejo.cuentaEnCaja, isFalse);
     expect(viejo.toMap()['numeroAnterior'], '20250312-101530');
-    expect(Formato.numeroRecibo(viejo.numero, viejo.numeroAnterior), '20250312-101530');
+    expect(Pago.fromMap('p', {'numero': 4, 'monto': 1}).delSistemaAnterior, isFalse);
     expect(Formato.numeroRecibo(0, ''), 's/n');
     expect(Formato.numeroRecibo(7, 'x'), '00007');
     expect(Pago.fromMap('p', {'numero': 7, 'monto': 1}).toMap().containsKey('numeroAnterior'), isFalse);

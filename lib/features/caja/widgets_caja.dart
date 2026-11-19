@@ -50,7 +50,7 @@ class FilaPago extends StatelessWidget {
     final tachado = p.anulado ? TextDecoration.lineThrough : null;
     final subtitulo = [
       if (mostrarCliente && p.clienteNombre.isNotEmpty) p.clienteNombre,
-      if (p.delSistemaAnterior) 'Sistema anterior' else p.medio.etiqueta,
+      if (p.delSistemaAnterior) 'Talonario anterior (no suma a la caja)' else p.medio.etiqueta,
       Formato.fecha(p.fecha),
     ].join(' · ');
 

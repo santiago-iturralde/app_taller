@@ -42,13 +42,11 @@ class Pago {
 
   final String id;
 
-  /// Número de recibo correlativo (0 en los importados del sistema anterior).
+  /// Número de recibo correlativo.
   final int numero;
 
-  /// Número que tenía el recibo en el sistema anterior.
+  /// Número que tenía el recibo en el sistema anterior (si fue importado).
   final String numeroAnterior;
-
-  bool get delSistemaAnterior => numero == 0;
   final double monto;
   final DateTime fecha;
   final MedioPago medio;
@@ -62,6 +60,9 @@ class Pago {
   /// Comprobantes importados del sistema anterior que no se contaban
   /// como ingreso (para no duplicar lo cobrado en reparaciones).
   final bool excluirDeCaja;
+
+  /// Recibo importado del talonario del sistema anterior.
+  bool get delSistemaAnterior => excluirDeCaja;
 
   /// Detalle de lo vendido (sólo en ventas de mostrador).
   final List<ItemLinea> items;
