@@ -1,18 +1,35 @@
 import 'comunes.dart';
 import 'rubro.dart';
 
-enum Plan { gratis, pro }
+/// Planes comerciales, de menor a mayor.
+enum Plan {
+  gratis('free', 'Gratis'),
+  basico('basico', 'Básico'),
+  pro('pro', 'PRO');
 
-/// Funciones reservadas al plan PRO. Centralizado acá para que cambiar
-/// qué es pago y qué no sea tocar una sola línea.
-enum FuncionPro {
-  reportes('Reportes y estadísticas'),
-  recibosPdf('Recibos impresos'),
-  exportarExcel('Exportar a Excel'),
-  equipo('Trabajar en equipo');
-
-  const FuncionPro(this.nombre);
+  const Plan(this.valor, this.nombre);
+  final String valor;
   final String nombre;
+
+  static Plan desde(String? v) => values.firstWhere((p) => p.valor == v, orElse: () => gratis);
+
+  bool incluye(FuncionPro f) => index >= f.planMinimo.index;
+}
+
+/// Funciones pagas y el plan mínimo que las incluye. Centralizado acá: para
+/// cambiar qué incluye cada plan se toca una sola línea. (El servidor y las
+/// reglas aplican las mismas condiciones: facturación con plan pago,
+/// equipo con PRO.)
+enum FuncionPro {
+  recibosPdf('Recibos impresos', Plan.basico),
+  exportarExcel('Exportar a Excel', Plan.basico),
+  facturacion('Facturación electrónica ARCA', Plan.basico),
+  reportes('Reportes y estadísticas', Plan.pro),
+  equipo('Trabajar en equipo', Plan.pro);
+
+  const FuncionPro(this.nombre, this.planMinimo);
+  final String nombre;
+  final Plan planMinimo;
 }
 
 enum RolMiembro {
@@ -114,6 +131,7 @@ class Negocio {
     this.cuit = '',
     this.plan = Plan.gratis,
     this.planVence,
+    this.prueba = false,
     this.plantillas = const {},
     this.tieneLogo = false,
   });
@@ -126,16 +144,35 @@ class Negocio {
   final String telefono;
   final String email;
   final String cuit;
+  /// Plan contratado (puede estar vencido: ver [planEfectivo]).
   final Plan plan;
   final DateTime? planVence;
+
+  /// `true` durante el período de prueba gratuito.
+  final bool prueba;
   final Map<String, String> plantillas;
   final bool tieneLogo;
 
   Rubro get rubro => Rubro.porId(rubroId);
 
-  bool get esPro => plan == Plan.pro && (planVence == null || planVence!.isAfter(DateTime.now()));
+  /// `true` si tenía un plan pago y ya venció.
+  bool get vencido => plan != Plan.gratis && planVence != null && planVence!.isBefore(DateTime.now());
 
-  bool permite(FuncionPro funcion) => esPro;
+  /// Plan con el que funciona hoy: si el plan pago venció, queda en Gratis
+  /// (sin perder datos).
+  Plan get planEfectivo => vencido ? Plan.gratis : plan;
+
+  bool get esPro => planEfectivo == Plan.pro;
+
+  bool permite(FuncionPro funcion) => planEfectivo.incluye(funcion);
+
+  /// Días que faltan para el vencimiento (0 = vence hoy), o null si no vence.
+  int? diasRestantes([DateTime? ahora]) {
+    if (planVence == null || plan == Plan.gratis) return null;
+    final hoy = ahora ?? DateTime.now();
+    final d = DateTime(planVence!.year, planVence!.month, planVence!.day);
+    return d.difference(DateTime(hoy.year, hoy.month, hoy.day)).inDays;
+  }
 
   String plantilla(String clave) {
     final propia = plantillas[clave];
@@ -151,8 +188,9 @@ class Negocio {
         telefono: leerTexto(m['telefono']),
         email: leerTexto(m['email']),
         cuit: leerTexto(m['cuit']),
-        plan: m['plan'] == 'pro' ? Plan.pro : Plan.gratis,
+        plan: Plan.desde(m['plan'] as String?),
         planVence: leerFecha(m['planVence']),
+        prueba: m['prueba'] == true,
         plantillas: (m['plantillas'] is Map)
             ? Map<String, dynamic>.from(m['plantillas'] as Map).map((k, v) => MapEntry(k, v.toString()))
             : const {},
@@ -191,6 +229,7 @@ class Negocio {
         cuit: cuit ?? this.cuit,
         plan: plan,
         planVence: planVence,
+        prueba: prueba,
         plantillas: plantillas ?? this.plantillas,
         tieneLogo: tieneLogo,
       );

@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -29,6 +30,15 @@ void mostrarMensaje(BuildContext context, String texto, {bool error = false, Sna
 /// Traduce errores técnicos a un mensaje entendible.
 String mensajeDeError(Object error) {
   if (error is ErrorDeNegocio) return error.mensaje;
+  // Los mensajes del servidor ya están pensados para mostrarse.
+  if (error is FirebaseFunctionsException) {
+    return switch (error.code) {
+      'unauthenticated' => 'Tu sesión venció. Volvé a ingresar.',
+      'internal' when (error.message ?? '').toLowerCase() == 'internal' => 'Ocurrió un error en el servidor. Probá de nuevo.',
+      'unavailable' when (error.message ?? '').isEmpty => 'El servidor no está disponible. Probá de nuevo en unos minutos.',
+      _ => error.message ?? 'Ocurrió un error en el servidor.',
+    };
+  }
   if (error is FirebaseException) {
     return switch (error.code) {
       'permission-denied' => 'No tenés permiso para realizar esta acción.',

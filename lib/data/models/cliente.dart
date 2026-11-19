@@ -1,5 +1,6 @@
 import '../../core/utils/busqueda.dart';
 import 'comunes.dart';
+import 'fiscal.dart';
 
 class Cliente {
   const Cliente({
@@ -11,6 +12,7 @@ class Cliente {
     this.direccion = '',
     this.notas = '',
     this.fechaAlta,
+    this.condicionIva = CondicionIva.consumidorFinal,
   });
 
   final String id;
@@ -23,6 +25,9 @@ class Cliente {
   final String direccion;
   final String notas;
   final DateTime? fechaAlta;
+
+  /// Para facturar: define si corresponde factura A o B.
+  final CondicionIva condicionIva;
 
   String get iniciales {
     final partes = nombre.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
@@ -40,6 +45,7 @@ class Cliente {
         direccion: leerTexto(m['direccion']),
         notas: leerTexto(m['notas']),
         fechaAlta: leerFecha(m['fechaAlta'] ?? m['fechaRegistro']),
+        condicionIva: CondicionIva.desde(m['condicionIva'] as String?),
       );
 
   Map<String, dynamic> toMap() => {
@@ -50,6 +56,7 @@ class Cliente {
         'documento': documento.trim(),
         'direccion': direccion.trim(),
         'notas': notas.trim(),
+        'condicionIva': condicionIva.valor,
         'keywords': Busqueda.keywords([nombre, telefono, documento, email.split('@').first]),
       };
 }

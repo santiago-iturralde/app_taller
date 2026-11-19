@@ -16,6 +16,8 @@ import '../clientes/cliente_detalle_page.dart';
 import '../inicio/recordatorios.dart';
 import 'orden_form.dart';
 import 'widgets_orden.dart';
+import '../facturacion/factura_detalle_page.dart';
+import '../facturacion/facturar.dart';
 
 /// Arma el mensaje de WhatsApp de un trabajo a partir de la plantilla.
 String mensajeOrden(Negocio negocio, Orden o, String plantilla) => WhatsApp.aplicarPlantilla(
@@ -456,6 +458,28 @@ class _Importe extends StatelessWidget {
               onPressed: () => abrirFormulario<Pago>(context, CobroForm(orden: orden)),
               icon: const Icon(Icons.payments_outlined),
               label: Text(orden.sinPresupuestar ? 'Registrar seña' : 'Registrar cobro'),
+            ),
+          ],
+          if (orden.facturaId != null) ...[
+            const SizedBox(height: Espacio.s),
+            OutlinedButton.icon(
+              onPressed: () => abrirPagina(context, FacturaDetallePage(facturaId: orden.facturaId!)),
+              icon: const Icon(Icons.receipt_long_outlined),
+              label: const Text('Ver factura'),
+            ),
+          ] else if (orden.estado != EstadoOrden.cancelado && !orden.sinPresupuestar) ...[
+            const SizedBox(height: Espacio.s),
+            OutlinedButton.icon(
+              onPressed: () => facturar(
+                context,
+                origenTipo: 'orden',
+                origenId: orden.id,
+                total: orden.total,
+                nombreCliente: orden.clienteNombre,
+                clienteId: orden.clienteId,
+              ),
+              icon: const Icon(Icons.receipt_long_outlined),
+              label: const Text('Facturar'),
             ),
           ],
         ],

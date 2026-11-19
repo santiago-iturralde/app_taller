@@ -8,6 +8,7 @@ import '../../core/widgets/feedback.dart';
 import '../../data/db.dart';
 import '../../data/migracion_legacy.dart';
 import '../../data/models/rubro.dart';
+import '../../app/app_info.dart';
 
 /// Primer uso: elegir el rubro y cargar los datos básicos del negocio.
 class OnboardingPage extends StatefulWidget {
@@ -52,6 +53,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
         rubro: _rubro!.id,
         telefono: _telefono.text.trim(),
         direccion: _direccion.text.trim(),
+        diasPrueba: AppInfo.diasPrueba,
       );
       await FirebaseFirestore.instance
           .collection('users')

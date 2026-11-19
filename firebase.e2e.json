@@ -1,0 +1,13 @@
+{
+  "functions": [{ "source": "functions", "codebase": "default", "ignore": ["node_modules", ".git", "*.log"] }],
+  "emulators": {
+    "auth": { "port": 9199 },
+    "firestore": { "port": 8282 },
+    "functions": { "port": 5101 },
+    "hub": { "port": 4420 },
+    "logging": { "port": 4520 },
+    "eventarc": { "port": 9399 },
+    "tasks": { "port": 9499 },
+    "ui": { "enabled": false }
+  }
+}

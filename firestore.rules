@@ -27,6 +27,18 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Administrador de la plataforma (custom claim asignado con
+    // tools/admin/superadmin.js). Sólo lee: los cambios de plan pasan por
+    // la función adminCambiarPlan, que deja auditoría.
+    function superadmin() {
+      return autenticado() && request.auth.token.superadmin == true;
+    }
+
+    // El trabajo o cobro facturado lo marca sólo el servidor.
+    function facturaIntacta() {
+      return request.resource.data.get('facturaId', null) == (resource == null ? null : resource.data.get('facturaId', null));
+    }
+
     function rutaMiembro(negocioId) {
       return /databases/$(database)/documents/negocios/$(negocioId)/miembros/$(request.auth.uid);
     }
@@ -95,24 +107,32 @@ service cloud.firestore {
     match /negocios/{negocioId} {
       // El usuario también puede leer "su" negocio (ID = su UID) antes de
       // ser miembro, para saber si ya existe al crearlo o migrar.
-      allow read: if miembro(negocioId) || (autenticado() && negocioId == request.auth.uid);
+      allow read: if miembro(negocioId) || (autenticado() && negocioId == request.auth.uid) || superadmin();
 
-      // El primer negocio de cada usuario usa su UID como ID y nace gratis.
+      // El primer negocio de cada usuario usa su UID como ID. Nace gratis o
+      // con una prueba del plan PRO de hasta 16 días.
       allow create: if autenticado()
         && negocioId == request.auth.uid
         && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.plan == 'free'
-        && !('planVence' in request.resource.data)
-        && textoValido('nombre', 120);
+        && textoValido('nombre', 120)
+        && (
+          (request.resource.data.plan == 'free'
+            && !('planVence' in request.resource.data)
+            && request.resource.data.get('prueba', false) == false)
+          || (request.resource.data.plan == 'pro'
+            && request.resource.data.prueba == true
+            && request.resource.data.planVence is timestamp
+            && request.resource.data.planVence <= request.time + duration.value(16, 'd'))
+        );
 
       allow update: if administra(negocioId)
-        && !cambia(['plan', 'planVence', 'ownerUid'])
+        && !cambia(['plan', 'planVence', 'prueba', 'planActualizado', 'ownerUid'])
         && textoValido('nombre', 120);
 
       allow delete: if false;
 
       match /miembros/{uid} {
-        allow read: if miembro(negocioId);
+        allow read: if miembro(negocioId) || superadmin();
 
         // Alta:
         //  a) el dueño se registra a sí mismo al crear el negocio;
@@ -162,7 +182,8 @@ service cloud.firestore {
           && request.resource.data.numero is int
           && request.resource.data.total is number
           && request.resource.data.pagado is number
-          && request.resource.data.pagado >= 0;
+          && request.resource.data.pagado >= 0
+          && facturaIntacta();
         // Un trabajo con cobros no se borra: primero se anulan los cobros.
         allow delete: if administra(negocioId) && resource.data.get('pagado', 0) == 0;
       }
@@ -183,7 +204,8 @@ service cloud.firestore {
           && request.resource.data.numero is int
           && request.resource.data.monto is number
           && request.resource.data.monto >= 0
-          && request.resource.data.get('anulado', false) == false;
+          && request.resource.data.get('anulado', false) == false
+          && facturaIntacta();
         // Se permite anular, o reescribir sin cambios (reintento de migración).
         allow update: if miembro(negocioId) && (
           cambios().size() == 0
@@ -244,6 +266,40 @@ service cloud.firestore {
           && request.resource.data.get('pagos', 0) >= resource.data.get('pagos', 0);
       }
 
+      // Datos fiscales para facturar: los cargan los administradores.
+      match /meta/fiscal {
+        allow read: if miembro(negocioId);
+        allow write: if administra(negocioId)
+          && textoValido('razonSocial', 150)
+          && request.resource.data.cuit is string
+          && request.resource.data.cuit.matches('^[0-9]{11}$')
+          && request.resource.data.condicionIva in ['responsable_inscripto', 'monotributo', 'exento']
+          && request.resource.data.puntoVenta is int
+          && request.resource.data.puntoVenta >= 1
+          && request.resource.data.puntoVenta <= 99998
+          && request.resource.data.alicuotaIva in [0, 2.5, 5, 10.5, 21, 27]
+          && request.resource.data.ambiente in ['homologacion', 'produccion']
+          && request.resource.data.concepto in [1, 2, 3];
+      }
+
+      // Estado de la conexión con ARCA: lo escribe sólo el servidor.
+      match /meta/arca {
+        allow read: if miembro(negocioId);
+        allow write: if false;
+      }
+
+      // Claves privadas, certificados y tickets de ARCA (cifrados):
+      // inaccesibles desde la app.
+      match /privado/{doc} {
+        allow read, write: if false;
+      }
+
+      // Facturas electrónicas: las emite y actualiza sólo el servidor.
+      match /facturas/{id} {
+        allow read: if miembro(negocioId);
+        allow write: if false;
+      }
+
       match /meta/branding {
         allow read: if miembro(negocioId);
         allow write: if administra(negocioId)
@@ -295,6 +351,12 @@ service cloud.firestore {
       match /{coleccion}/{documento=**} {
         allow read, write: if autenticado() && request.auth.uid == uid;
       }
+    }
+
+    // Registro de cambios de plan (lo escribe la función adminCambiarPlan).
+    match /auditoriaPlanes/{id} {
+      allow read: if superadmin();
+      allow write: if false;
     }
 
     // Configuración global (aviso de nueva versión, etc.). Sólo lectura.

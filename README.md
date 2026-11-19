@@ -26,6 +26,11 @@ defecto, pero el motor es el mismo para todos.
 - **Reportes (PRO)**: cobrado, gastos, resultado, comparación con el mes anterior, desgloses,
   lo más vendido, ganancia bruta y margen por producto, inventario valorizado.
 - **Equipo (PRO)**: el dueño invita por email a administradores y empleados, con permisos por rol.
+- **Facturación electrónica ARCA (Básico/PRO)**: facturas A, B y C y notas de crédito desde cada trabajo
+  o venta, con CAE, código QR y PDF; configuración guiada del certificado.
+- **Planes**: Gratis, Básico y PRO, prueba gratis para negocios nuevos y aviso de vencimiento.
+- **Panel de administración** (sólo para el dueño de la plataforma): negocios, planes, vencimientos,
+  cobros registrados y auditoría de cada cambio.
 - **Búsqueda** por nombre, teléfono, documento, patente o número.
 - **Diseño adaptable**: barra lateral en PC, barra inferior en celular; tema azul noche (oscuro),
   claro o según el sistema.
@@ -33,12 +38,28 @@ defecto, pero el motor es el mismo para todos.
 ## Arquitectura
 
 ```
-lib/
+lib/          App Flutter
   app/        Arranque, sesión, navegación (shell) y datos del producto
   core/       Tema, componentes de UI, formularios, PDF y utilidades
   data/       Modelos, repositorios (acceso a Firestore) y migración
   features/   Una carpeta por sección: inicio, trabajos, clientes, …
+functions/    Backend (Cloud Functions, TypeScript)
+  src/arca/   Facturación electrónica: WSAA, WSFEv1, certificados, QR
+  src/handlers/  Funciones que llama la app (ARCA y administración)
+tools/        Tests de reglas y script de administrador
+docs/         Guía de publicación
 ```
+
+### Facturación ARCA (backend)
+
+- La clave privada de cada negocio se **genera en el servidor** y se guarda cifrada (AES-256-GCM)
+  con una clave maestra en Secret Manager. Nunca viaja a la app.
+- Los importes salen del trabajo o cobro guardado, no de lo que envía la app.
+- Una transacción reserva el trabajo/cobro antes de pedir el CAE: no se puede facturar dos veces.
+- Un bloqueo por punto de venta y tipo evita que dos facturas pidan el mismo número.
+- Si ARCA no responde después de enviar el pedido, la factura queda "sin confirmar" y al reintentar
+  se consulta a ARCA antes de volver a pedir (nunca se duplica).
+- Anular = nota de crédito (ARCA no permite borrar comprobantes).
 
 - Las pantallas **no hablan con Firestore**: usan los repositorios de `data/repositories`
   a través de `Sesion.of(context)`.
@@ -105,17 +126,10 @@ flutter run -d chrome --dart-define=EMULADORES=true
 flutter analyze
 flutter test                                # lógica y componentes
 cd tools/reglas_test && npm install && npm test   # reglas de seguridad (requiere Java; usa el puerto 8181)
+cd functions && npm test                          # backend: ARCA, cifrado, planes
+cd functions && npm run e2e                       # backend de punta a punta en emuladores aislados
 ```
 
 ## Publicar una versión
 
-1. `firebase deploy --only firestore:rules,firestore:indexes`
-   (la versión anterior de la app sigue funcionando con estas reglas).
-2. `flutter build web --release && firebase deploy --only hosting:app`
-3. En la consola de Firestore, `configuracion/app_info` → `version: 4`
-   para que las pestañas abiertas con la versión vieja pidan recargar.
-
-Al ingresar, los usuarios del sistema anterior ven una pantalla de
-actualización que **copia** sus datos al nuevo formato (no borra nada de
-`users/{uid}`). Si tenían plan premium, hay que asignarlo en la consola:
-`negocios/{uid}` → `plan: "pro"` (y opcionalmente `planVence`).
+Ver la guía paso a paso: [docs/PUBLICAR.md](docs/PUBLICAR.md).

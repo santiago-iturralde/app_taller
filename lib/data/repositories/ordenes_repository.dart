@@ -136,7 +136,8 @@ class OrdenesRepository {
       final snap = await tx.get(ref);
       if (!snap.exists) throw const ErrorDeNegocio('El trabajo ya no existe.');
       final actual = Orden.fromMap(snap.id, snap.data()!);
-      final nueva = cambio(actual);
+      // La factura la asigna sólo el servidor: se conserva la que tiene ahora.
+      final nueva = Orden.fromMap(id, {...cambio(actual).toMap(), 'facturaId': actual.facturaId});
       final deltas = CalculoStock.diferencia(actual.itemsQueConsumenStock, nueva.itemsQueConsumenStock);
       final productos = await _productos.leerParaStock(tx, deltas.keys);
       tx.set(ref, nueva.toMap());

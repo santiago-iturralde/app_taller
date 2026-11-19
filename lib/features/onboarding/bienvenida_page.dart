@@ -8,13 +8,17 @@ import '../../core/widgets/feedback.dart';
 import '../../data/models/equipo.dart';
 import '../../data/repositories/equipo_repository.dart';
 import 'onboarding_page.dart';
+import '../admin/admin_page.dart';
 
 /// Primera pantalla de un usuario sin negocio: crear el propio o sumarse a
 /// uno al que lo invitaron.
 class BienvenidaPage extends StatefulWidget {
-  const BienvenidaPage({super.key, required this.usuario, required this.onListo});
+  const BienvenidaPage({super.key, required this.usuario, required this.onListo, this.esSuperadmin = false});
   final User usuario;
   final VoidCallback onListo;
+
+  /// El administrador de la plataforma puede entrar al panel sin tener negocio.
+  final bool esSuperadmin;
 
   @override
   State<BienvenidaPage> createState() => _BienvenidaPageState();
@@ -101,6 +105,15 @@ class _BienvenidaPageState extends State<BienvenidaPage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (widget.esSuperadmin) ...[
+              _Opcion(
+                icono: Icons.admin_panel_settings_outlined,
+                titulo: 'Panel de administración',
+                descripcion: 'Negocios, planes y vencimientos de la plataforma.',
+                onTap: () => abrirPagina(context, const AdminPage()),
+              ),
+              const SizedBox(height: Espacio.xl),
+            ],
             Text('¿Cómo querés empezar?', style: context.textos.headlineSmall),
             const SizedBox(height: Espacio.xs),
             Text(widget.usuario.email ?? '', style: TextStyle(color: context.esquema.onSurfaceVariant)),

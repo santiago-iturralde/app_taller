@@ -42,7 +42,7 @@ class EquipoSeccion extends StatelessWidget {
                         style: context.textos.bodyMedium?.copyWith(color: context.esquema.onSurfaceVariant),
                       ),
                     ),
-                    if (!sesion.negocio.esPro) const DistintivoPro(),
+                    if (!sesion.negocio.permite(FuncionPro.equipo)) const DistintivoPro(),
                     const SizedBox(width: Espacio.s),
                     FilledButton.tonalIcon(
                       onPressed: () => _invitar(context, miembros, invitaciones),

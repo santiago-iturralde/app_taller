@@ -4,6 +4,7 @@ import '../../app/sesion.dart';
 import '../../core/widgets/feedback.dart';
 import '../../core/widgets/formulario.dart';
 import '../../data/models/cliente.dart';
+import '../../data/models/fiscal.dart';
 
 /// Alta y edición de clientes. Devuelve el [Cliente] guardado.
 class ClienteForm extends StatefulWidget {
@@ -23,6 +24,7 @@ class _ClienteFormState extends State<ClienteForm> {
   late final _documento = TextEditingController(text: widget.cliente?.documento);
   late final _email = TextEditingController(text: widget.cliente?.email);
   late final _direccion = TextEditingController(text: widget.cliente?.direccion);
+  late CondicionIva _condicion = widget.cliente?.condicionIva ?? CondicionIva.consumidorFinal;
   late final _notas = TextEditingController(text: widget.cliente?.notas);
   bool _guardando = false;
 
@@ -50,6 +52,7 @@ class _ClienteFormState extends State<ClienteForm> {
       direccion: _direccion.text.trim(),
       notas: _notas.text.trim(),
       fechaAlta: widget.cliente?.fechaAlta,
+      condicionIva: _condicion,
     );
     Cliente? resultado;
     final ok = await ejecutar(context, () async {
@@ -117,6 +120,17 @@ class _ClienteFormState extends State<ClienteForm> {
             decoration: const InputDecoration(labelText: 'Dirección', prefixIcon: Icon(Icons.place_outlined)),
           ),
         ]),
+        espacioCampos,
+        DropdownButtonFormField<CondicionIva>(
+          value: _condicion,
+          decoration: const InputDecoration(
+            labelText: 'Condición frente al IVA',
+            prefixIcon: Icon(Icons.account_balance_outlined),
+            helperText: 'Para facturar: define si corresponde factura A o B',
+          ),
+          items: [for (final c in CondicionIva.values) DropdownMenuItem(value: c, child: Text(c.etiqueta))],
+          onChanged: (c) => setState(() => _condicion = c ?? _condicion),
+        ),
         espacioCampos,
         TextFormField(
           controller: _notas,

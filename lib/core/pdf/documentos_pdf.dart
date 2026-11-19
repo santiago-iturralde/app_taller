@@ -8,6 +8,7 @@ import 'package:printing/printing.dart';
 import '../../app/sesion.dart';
 import '../../data/models/caja.dart';
 import '../../data/models/comunes.dart';
+import '../../data/models/fiscal.dart';
 import '../../data/models/negocio.dart';
 import '../../data/models/orden.dart';
 import '../../data/models/presupuesto.dart';
@@ -136,6 +137,139 @@ class DocumentosPdf {
           pw.Align(alignment: pw.Alignment.centerRight, child: _lineaFirma('Firma y aclaración')),
         ],
       );
+
+
+  /// Factura o nota de crédito electrónica con el formato exigido por ARCA:
+  /// letra y código, datos del emisor y receptor, CAE y código QR.
+  Future<Uint8List> factura(Factura f) async {
+    final e = f.emisor;
+    final prueba = f.ambiente == AmbienteArca.homologacion;
+    final doc = pw.Document(theme: _tema, title: '${f.nombreTipo} ${f.numeroCompleto}', author: '${e['razonSocial'] ?? negocio.nombre}');
+    final condicionEmisor = CondicionIva.desde(e['condicionIva'] as String?, porDefecto: CondicionIva.monotributo).etiqueta;
+
+    pw.Widget dato(String etiqueta, String valor) => pw.RichText(
+          text: pw.TextSpan(children: [
+            pw.TextSpan(text: '$etiqueta: ', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8.5)),
+            pw.TextSpan(text: valor, style: const pw.TextStyle(fontSize: 8.5)),
+          ]),
+        );
+
+    final encabezado = pw.Container(
+      decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey700)),
+      child: pw.Stack(alignment: pw.Alignment.topCenter, children: [
+        pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+          pw.Expanded(
+            child: pw.Padding(
+              padding: const pw.EdgeInsets.all(10),
+              child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                if (logo != null) pw.Container(height: 42, margin: const pw.EdgeInsets.only(bottom: 6), child: pw.Image(pw.MemoryImage(logo!))),
+                pw.Text('${e['razonSocial'] ?? ''}', style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 4),
+                if ('${e['domicilio'] ?? ''}'.isNotEmpty) dato('Domicilio', '${e['domicilio']}'),
+                dato('Condición frente al IVA', condicionEmisor),
+              ]),
+            ),
+          ),
+          pw.Expanded(
+            child: pw.Padding(
+              padding: const pw.EdgeInsets.fromLTRB(40, 10, 10, 10),
+              child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                pw.Text(f.esNotaCredito ? 'NOTA DE CRÉDITO' : 'FACTURA', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 4),
+                dato('Punto de venta - N°', f.numeroCompleto),
+                dato('Fecha de emisión', f.fecha == null ? '-' : Formato.fecha(f.fecha!)),
+                dato('CUIT', '${e['cuit'] ?? ''}'),
+                if ('${e['ingresosBrutos'] ?? ''}'.isNotEmpty) dato('Ingresos Brutos', '${e['ingresosBrutos']}'),
+                if ('${e['inicioActividades'] ?? ''}'.isNotEmpty) dato('Inicio de actividades', '${e['inicioActividades']}'),
+              ]),
+            ),
+          ),
+        ]),
+        // Recuadro central con la letra y el código del comprobante.
+        pw.Container(
+          width: 46,
+          padding: const pw.EdgeInsets.symmetric(vertical: 4),
+          decoration: pw.BoxDecoration(color: PdfColors.white, border: pw.Border.all(color: PdfColors.grey700)),
+          child: pw.Column(children: [
+            pw.Text(f.letra, style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+            pw.Text('COD. ${f.codigo}', style: const pw.TextStyle(fontSize: 6.5)),
+          ]),
+        ),
+      ]),
+    );
+
+    final receptor = pw.Container(
+      margin: const pw.EdgeInsets.only(top: 6),
+      padding: const pw.EdgeInsets.all(8),
+      decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey700)),
+      child: pw.Row(children: [
+        pw.Expanded(
+          child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+            dato('Apellido y nombre / Razón social', f.receptorNombre),
+            dato('Condición frente al IVA', f.receptorCondicion.etiqueta),
+          ]),
+        ),
+        pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+          dato('Documento', f.documentoReceptor),
+          dato('Condición de venta', 'Contado'),
+        ]),
+      ]),
+    );
+
+    final filasTotales = <(String, double, bool)>[
+      if (f.discriminaIva) ('Importe neto gravado', f.neto, false),
+      if (f.discriminaIva) ('IVA ${Formato.cantidad(f.alicuota ?? 0)}%', f.iva, false),
+      ('Importe total', f.total, true),
+    ];
+
+    final pie = pw.Container(
+      margin: const pw.EdgeInsets.only(top: 12),
+      padding: const pw.EdgeInsets.all(8),
+      decoration: pw.BoxDecoration(border: pw.Border.all(color: PdfColors.grey700)),
+      child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
+        if (f.qr != null) pw.BarcodeWidget(barcode: pw.Barcode.qrCode(), data: f.qr!, width: 78, height: 78),
+        pw.SizedBox(width: 12),
+        pw.Expanded(
+          child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+            pw.Text('Comprobante autorizado', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+            pw.Text('Esta Administración Federal no se responsabiliza por los datos ingresados en el detalle de la operación.',
+                style: const pw.TextStyle(fontSize: 7, color: _gris)),
+          ]),
+        ),
+        pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.end, children: [
+          dato('CAE N°', f.cae ?? '-'),
+          dato('Fecha de vto. de CAE', f.caeVence == null ? '-' : Formato.fecha(f.caeVence!)),
+        ]),
+      ]),
+    );
+
+    doc.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(28),
+      header: (_) => pw.Column(children: [
+        if (prueba)
+          pw.Container(
+            width: double.infinity,
+            margin: const pw.EdgeInsets.only(bottom: 6),
+            padding: const pw.EdgeInsets.all(4),
+            color: PdfColors.amber100,
+            child: pw.Text('COMPROBANTE DE PRUEBA (HOMOLOGACIÓN) - SIN VALIDEZ FISCAL',
+                textAlign: pw.TextAlign.center, style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 9)),
+          ),
+        encabezado,
+        receptor,
+        if (f.asociada != null)
+          pw.Padding(padding: const pw.EdgeInsets.only(top: 4), child: dato('Comprobante asociado', f.asociada!)),
+        pw.SizedBox(height: 10),
+      ]),
+      footer: (_) => pie,
+      build: (_) => [
+        _tablaItems(f.items),
+        _totales(filasTotales),
+      ],
+    ));
+    return doc.save();
+  }
 
   // --------------------------------------------------------------- Bloques
 

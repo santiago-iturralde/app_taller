@@ -415,6 +415,145 @@ describe('Gestión del equipo', () => {
   });
 });
 
+describe('Planes, prueba gratis y vencimiento', () => {
+  const enDias = (d) => new Date(Date.now() + d * 24 * 3600 * 1000);
+
+  async function crearCon(uid, extra) {
+    const db = dbDe(uid);
+    const batch = writeBatch(db);
+    batch.set(doc(db, `negocios/${uid}`), { nombre: 'Lubri', rubro: 'lubricentro', ownerUid: uid, ...extra });
+    batch.set(doc(db, `negocios/${uid}/miembros/${uid}`), { rol: 'owner', email: `${uid}@x.com` });
+    return batch.commit();
+  }
+
+  test('un negocio nuevo puede nacer con 15 días de prueba PRO', async () => {
+    await assertSucceeds(crearCon(ANA, { plan: 'pro', prueba: true, planVence: enDias(15) }));
+  });
+
+  test('no puede darse una prueba más larga, ni un plan pago sin pagar', async () => {
+    await assertFails(crearCon(ANA, { plan: 'pro', prueba: true, planVence: enDias(60) }));
+    await assertFails(crearCon(BETO, { plan: 'pro', prueba: false, planVence: enDias(10) }));
+    await assertFails(crearCon('carlos', { plan: 'basico', prueba: true, planVence: enDias(10) }));
+  });
+
+  test('el dueño no puede extender la prueba ni quitarle la marca', async () => {
+    await crearCon(ANA, { plan: 'pro', prueba: true, planVence: enDias(15) });
+    const ref = doc(dbDe(ANA), `negocios/${ANA}`);
+    await assertFails(updateDoc(ref, { planVence: enDias(30) }));
+    await assertFails(updateDoc(ref, { prueba: false }));
+  });
+});
+
+describe('Facturación electrónica', () => {
+  const fiscal = {
+    razonSocial: 'Lubricentro Demo SRL',
+    cuit: '33693450239',
+    condicionIva: 'responsable_inscripto',
+    domicilio: 'Av. Siempre Viva 123',
+    ingresosBrutos: '',
+    inicioActividades: '',
+    puntoVenta: 3,
+    alicuotaIva: 21,
+    ambiente: 'homologacion',
+    concepto: 3,
+  };
+
+  beforeEach(async () => {
+    await crearNegocio(ANA);
+    await comoAdmin(async (db) => {
+      await setDoc(doc(db, `negocios/${ANA}/miembros/${BETO}`), { rol: 'empleado' });
+      await setDoc(doc(db, `negocios/${ANA}/privado/arca_homologacion`), { claveCifrada: 'v1:xxx' });
+      await setDoc(doc(db, `negocios/${ANA}/facturas/f1`), { estado: 'autorizada', numero: 1 });
+      await setDoc(doc(db, `negocios/${ANA}/meta/arca`), { homologacion: { estado: 'listo' } });
+      await setDoc(doc(db, `negocios/${ANA}/ordenes/o1`), { numero: 1, total: 100, pagado: 0, facturaId: 'f1' });
+      await setDoc(doc(db, `negocios/${ANA}/ordenes/o2`), { numero: 2, total: 100, pagado: 0 });
+    });
+  });
+
+  test('el dueño carga datos fiscales válidos', async () => {
+    await assertSucceeds(setDoc(doc(dbDe(ANA), `negocios/${ANA}/meta/fiscal`), fiscal));
+  });
+
+  test('datos fiscales inválidos se rechazan', async () => {
+    const ref = doc(dbDe(ANA), `negocios/${ANA}/meta/fiscal`);
+    await assertFails(setDoc(ref, { ...fiscal, cuit: '33-69345023-9' }));
+    await assertFails(setDoc(ref, { ...fiscal, puntoVenta: 0 }));
+    await assertFails(setDoc(ref, { ...fiscal, alicuotaIva: 19 }));
+    await assertFails(setDoc(ref, { ...fiscal, ambiente: 'otro' }));
+  });
+
+  test('un empleado ve los datos fiscales pero no los cambia', async () => {
+    await comoAdmin((db) => setDoc(doc(db, `negocios/${ANA}/meta/fiscal`), fiscal));
+    await assertSucceeds(getDoc(doc(dbDe(BETO), `negocios/${ANA}/meta/fiscal`)));
+    await assertFails(setDoc(doc(dbDe(BETO), `negocios/${ANA}/meta/fiscal`), fiscal));
+  });
+
+  test('las claves y certificados son inaccesibles, incluso para el dueño', async () => {
+    const ref = doc(dbDe(ANA), `negocios/${ANA}/privado/arca_homologacion`);
+    await assertFails(getDoc(ref));
+    await assertFails(setDoc(ref, { claveCifrada: 'robada' }));
+  });
+
+  test('el estado de ARCA y las facturas sólo los escribe el servidor', async () => {
+    const db = dbDe(ANA);
+    await assertSucceeds(getDoc(doc(db, `negocios/${ANA}/meta/arca`)));
+    await assertFails(setDoc(doc(db, `negocios/${ANA}/meta/arca`), { homologacion: { estado: 'listo' } }));
+    await assertSucceeds(getDoc(doc(db, `negocios/${ANA}/facturas/f1`)));
+    await assertFails(setDoc(doc(db, `negocios/${ANA}/facturas/f2`), { estado: 'autorizada', cae: '123' }));
+    await assertFails(updateDoc(doc(db, `negocios/${ANA}/facturas/f1`), { estado: 'rechazada' }));
+  });
+
+  test('la app no puede marcar ni desmarcar un trabajo como facturado', async () => {
+    const db = dbDe(ANA);
+    await assertFails(updateDoc(doc(db, `negocios/${ANA}/ordenes/o2`), { facturaId: 'trucha' }));
+    await assertFails(setDoc(doc(db, `negocios/${ANA}/ordenes/o1`), { numero: 1, total: 100, pagado: 0 }));
+    // Editar el trabajo conservando la factura está permitido.
+    await assertSucceeds(setDoc(doc(db, `negocios/${ANA}/ordenes/o1`), { numero: 1, total: 120, pagado: 0, facturaId: 'f1' }));
+  });
+
+  test('un cobro no puede crearse ya facturado', async () => {
+    await assertFails(setDoc(doc(dbDe(ANA), `negocios/${ANA}/pagos/p9`), { numero: 9, monto: 10, anulado: false, facturaId: 'x' }));
+  });
+
+  test('otro negocio no ve las facturas', async () => {
+    await assertFails(getDoc(doc(dbDe('intruso'), `negocios/${ANA}/facturas/f1`)));
+  });
+});
+
+describe('Administrador de la plataforma', () => {
+  const JEFE = 'jefe';
+  const dbJefe = () => env.authenticatedContext(JEFE, { superadmin: true, email: 'jefe@x.com' }).firestore();
+
+  beforeEach(async () => {
+    await crearNegocio(ANA);
+    await comoAdmin(async (db) => {
+      await setDoc(doc(db, `negocios/${ANA}/clientes/c1`), { nombre: 'Cliente privado' });
+      await setDoc(doc(db, 'auditoriaPlanes/a1'), { negocioId: ANA, accion: 'activar' });
+    });
+  });
+
+  test('ve todos los negocios, sus miembros y la auditoría', async () => {
+    const db = dbJefe();
+    await assertSucceeds(getDoc(doc(db, `negocios/${ANA}`)));
+    await assertSucceeds(getDoc(doc(db, `negocios/${ANA}/miembros/${ANA}`)));
+    await assertSucceeds(getDoc(doc(db, 'auditoriaPlanes/a1')));
+  });
+
+  test('no ve los datos internos de los negocios (privacidad)', async () => {
+    await assertFails(getDoc(doc(dbJefe(), `negocios/${ANA}/clientes/c1`)));
+  });
+
+  test('no cambia planes desde la app (sólo por la función con auditoría)', async () => {
+    const db = dbJefe();
+    await assertFails(updateDoc(doc(db, `negocios/${ANA}`), { plan: 'pro' }));
+    await assertFails(setDoc(doc(db, 'auditoriaPlanes/a2'), { negocioId: ANA }));
+  });
+
+  test('un usuario común no ve la auditoría', async () => {
+    await assertFails(getDoc(doc(dbDe(ANA), 'auditoriaPlanes/a1')));
+  });
+});
+
 describe('Perfil de usuario y sistema anterior', () => {
   test('el usuario no puede marcarse premium en el esquema viejo', async () => {
     const db = dbDe(ANA);

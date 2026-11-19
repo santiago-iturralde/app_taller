@@ -52,6 +52,10 @@ class _ResolverNegocio extends StatefulWidget {
 
 class _ResolverNegocioState extends State<_ResolverNegocio> {
   _Paso _paso = _Paso.cargando;
+
+  /// Administrador de la plataforma (custom claim asignado con el script
+  /// tools/admin/superadmin.js).
+  bool _esSuperadmin = false;
   StreamSubscription<DocumentSnapshot<Json>>? _version;
   bool _avisoMostrado = false;
   SesionController? _controller;
@@ -93,6 +97,8 @@ class _ResolverNegocioState extends State<_ResolverNegocio> {
     final fs = FirebaseFirestore.instance;
     final uid = widget.usuario.uid;
     try {
+      final token = await widget.usuario.getIdTokenResult();
+      _esSuperadmin = token.claims?['superadmin'] == true;
       final perfil = (await fs.collection('users').doc(uid).get()).data() ?? const {};
       final negocioId = perfil['negocioId'] as String?;
 
@@ -122,6 +128,7 @@ class _ResolverNegocioState extends State<_ResolverNegocio> {
         usuario: widget.usuario,
         negocio: negocio,
         rol: RolMiembro.desde(miembro.data()?['rol'] as String?),
+        esSuperadmin: _esSuperadmin,
       ));
       setState(() => _paso = _Paso.listo);
     } catch (e, st) {
@@ -160,7 +167,7 @@ class _ResolverNegocioState extends State<_ResolverNegocio> {
   Widget build(BuildContext context) {
     return switch (_paso) {
       _Paso.cargando => const _Splash(),
-      _Paso.alta => BienvenidaPage(usuario: widget.usuario, onListo: _resolver),
+      _Paso.alta => BienvenidaPage(usuario: widget.usuario, onListo: _resolver, esSuperadmin: _esSuperadmin),
       _Paso.migracion => MigracionPage(usuario: widget.usuario, onListo: _resolver),
       _Paso.listo => const Shell(),
       _Paso.sinAcceso => _Mensaje(

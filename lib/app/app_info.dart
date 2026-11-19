@@ -13,7 +13,13 @@ abstract final class AppInfo {
   /// botón de contratar PRO muestra "próximamente".
   static const whatsappVentas = '';
 
-  static const precioPro = r'$5.000';
+  /// Precios que se muestran en la pantalla de planes (los cobrás vos).
+  static const precioBasico = r'$ 15.000';
+  static const precioPro = r'$ 30.000';
+
+  /// Días de prueba gratis del plan PRO para negocios nuevos (máximo 16:
+  /// lo limitan las reglas de Firestore).
+  static const diasPrueba = 15;
 
   /// Dirección pública de la app web (para los mensajes de invitación).
   /// En la versión web se usa la dirección actual del navegador.

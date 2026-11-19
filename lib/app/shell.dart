@@ -16,6 +16,9 @@ import '../features/trabajos/trabajos_page.dart';
 import 'preferencias.dart';
 import 'sesion.dart';
 import '../data/models/negocio.dart';
+import '../features/planes/pro.dart';
+import '../features/facturacion/facturas_page.dart';
+import '../features/admin/admin_page.dart';
 
 enum _Seccion {
   inicio('Inicio', Icons.space_dashboard_outlined, Icons.space_dashboard_rounded),
@@ -24,6 +27,7 @@ enum _Seccion {
   presupuestos('Presupuestos', Icons.request_quote_outlined, Icons.request_quote_rounded),
   productos('Productos', Icons.inventory_2_outlined, Icons.inventory_2_rounded),
   caja('Caja', Icons.point_of_sale_outlined, Icons.point_of_sale_rounded),
+  facturas('Facturas', Icons.receipt_long_outlined, Icons.receipt_long_rounded),
   reportes('Reportes', Icons.insights_outlined, Icons.insights_rounded),
   ajustes('Ajustes', Icons.settings_outlined, Icons.settings_rounded);
 
@@ -34,7 +38,7 @@ enum _Seccion {
 
   /// Secciones de la barra inferior en celular (el resto va en "Más").
   static const movil = [inicio, trabajos, clientes, caja];
-  static const masMovil = [presupuestos, productos, reportes, ajustes];
+  static const masMovil = [presupuestos, productos, facturas, reportes, ajustes];
 }
 
 /// Estructura principal: barra lateral en escritorio, barra inferior en
@@ -62,6 +66,7 @@ class _ShellState extends State<Shell> {
     _Seccion.presupuestos => const PresupuestosPage(),
     _Seccion.productos => const ProductosPage(),
     _Seccion.caja => const CajaPage(),
+    _Seccion.facturas => const FacturasPage(),
     _Seccion.reportes => const ReportesPage(),
     _Seccion.ajustes => const AjustesPage(),
   };
@@ -80,7 +85,7 @@ class _ShellState extends State<Shell> {
         body: Row(
           children: [
             _BarraLateral(actual: _actual, onSeleccionar: _seleccionar),
-            Expanded(child: contenido),
+            Expanded(child: Column(children: [const AvisoPlan(), Expanded(child: contenido)])),
           ],
         ),
       );
@@ -88,7 +93,7 @@ class _ShellState extends State<Shell> {
 
     final indice = _Seccion.movil.indexOf(_actual);
     return Scaffold(
-      body: contenido,
+      body: Column(children: [const AvisoPlan(), Expanded(child: contenido)]),
       bottomNavigationBar: DecoratedBox(
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: context.colores.borde)),
@@ -128,7 +133,7 @@ class _ShellState extends State<Shell> {
                 leading: Icon(s.icono),
                 title: Text(s.titulo),
                 selected: s == _actual,
-                trailing: (s == _Seccion.reportes && !negocio.esPro) ? const DistintivoPro() : null,
+                trailing: (s == _Seccion.reportes && !negocio.permite(FuncionPro.reportes)) ? const DistintivoPro() : null,
                 onTap: () {
                   Navigator.pop(sheet);
                   _seleccionar(s);
@@ -138,10 +143,19 @@ class _ShellState extends State<Shell> {
               padding: EdgeInsets.symmetric(horizontal: Espacio.l, vertical: Espacio.s),
               child: SelectorTema(),
             ),
+            if (Sesion.of(context).esSuperadmin)
+              ListTile(
+                leading: const Icon(Icons.admin_panel_settings_outlined),
+                title: const Text('Administración de la plataforma'),
+                onTap: () {
+                  Navigator.pop(sheet);
+                  abrirPagina(context, const AdminPage());
+                },
+              ),
             if (!negocio.esPro)
               ListTile(
                 leading: Icon(Icons.workspace_premium_rounded, color: context.colores.pro),
-                title: const Text('Pasate a PRO'),
+                title: const Text('Mejorá tu plan'),
                 onTap: () {
                   Navigator.pop(sheet);
                   abrirPagina(context, const PlanesPage());
@@ -215,7 +229,7 @@ class _BarraLateral extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          negocio.esPro ? 'Plan PRO' : 'Plan Gratis',
+                          etiquetaPlan(negocio),
                           style: context.textos.bodySmall?.copyWith(color: c.lateralTextoSuave),
                         ),
                       ],
@@ -245,7 +259,7 @@ class _BarraLateral extends StatelessWidget {
                       seccion: s,
                       activo: s == actual,
                       onTap: () => onSeleccionar(s),
-                      extra: (s == _Seccion.reportes && !negocio.esPro) ? const DistintivoPro() : null,
+                      extra: (s == _Seccion.reportes && !negocio.permite(FuncionPro.reportes)) ? const DistintivoPro() : null,
                     ),
                 ],
               ),
@@ -267,7 +281,7 @@ class _BarraLateral extends StatelessWidget {
                           const SizedBox(width: Espacio.s),
                           Expanded(
                             child: Text(
-                              'Pasate a PRO',
+                              'Mejorá tu plan',
                               style: TextStyle(fontWeight: FontWeight.w700, color: c.lateralTexto),
                             ),
                           ),
@@ -276,6 +290,16 @@ class _BarraLateral extends StatelessWidget {
                       ),
                     ),
                   ),
+                ),
+              ),
+            if (sesion.esSuperadmin)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Espacio.m, vertical: 2),
+                child: ListTile(
+                  dense: true,
+                  leading: Icon(Icons.admin_panel_settings_outlined, color: c.lateralTextoSuave),
+                  title: Text('Administración', style: TextStyle(color: c.lateralTexto)),
+                  onTap: () => abrirPagina(context, const AdminPage()),
                 ),
               ),
             _Item(

@@ -15,6 +15,8 @@ import '../../data/models/negocio.dart';
 import '../../data/models/rubro.dart';
 import '../planes/planes_page.dart';
 import '../equipo/equipo_seccion.dart';
+import '../planes/pro.dart';
+import '../facturacion/config_arca_page.dart';
 
 class AjustesPage extends StatelessWidget {
   const AjustesPage({super.key});
@@ -41,6 +43,24 @@ class AjustesPage extends StatelessWidget {
                   const Seccion('Equipo'),
                   const EquipoSeccion(),
                 ],
+                if (sesion.puede(Permiso.editarNegocio)) ...[
+                  const Seccion('Facturación electrónica'),
+                  AppCard(
+                    onTap: () => abrirPagina(context, const ConfigArcaPage()),
+                    child: Row(children: [
+                      const IconoTile(Icons.receipt_long_outlined),
+                      const SizedBox(width: Espacio.m),
+                      Expanded(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('ARCA (ex AFIP)', style: context.textos.titleSmall),
+                          Text('Datos fiscales y conexión para emitir facturas', style: context.textos.bodySmall),
+                        ]),
+                      ),
+                      if (!sesion.negocio.permite(FuncionPro.facturacion)) const DistintivoPro(),
+                      const Icon(Icons.chevron_right_rounded),
+                    ]),
+                  ),
+                ],
                 const Seccion('Apariencia'),
                 const AppCard(child: Align(alignment: Alignment.centerLeft, child: SelectorTema())),
                 const Seccion('Plan'),
@@ -51,9 +71,9 @@ class AjustesPage extends StatelessWidget {
                     const SizedBox(width: Espacio.m),
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text(sesion.negocio.esPro ? 'Plan PRO' : 'Plan Gratis', style: context.textos.titleSmall),
+                        Text(etiquetaPlan(sesion.negocio), style: context.textos.titleSmall),
                         Text(
-                          sesion.negocio.esPro ? 'Tenés todas las funciones habilitadas' : 'Conocé lo que incluye el plan PRO',
+                          sesion.negocio.esPro ? 'Tenés todas las funciones habilitadas' : 'Conocé lo que incluye cada plan',
                           style: context.textos.bodySmall,
                         ),
                       ]),

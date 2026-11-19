@@ -36,6 +36,7 @@ class Pago {
     this.anulado = false,
     this.excluirDeCaja = false,
     this.items = const [],
+    this.facturaId,
   });
 
   final String id;
@@ -60,6 +61,13 @@ class Pago {
   bool get cuentaEnCaja => !anulado && !excluirDeCaja;
   bool get esVenta => items.isNotEmpty;
 
+  /// Factura electrónica emitida (la asigna el servidor).
+  final String? facturaId;
+
+  /// Se factura el cobro sólo si no pertenece a un trabajo (en ese caso se
+  /// factura el trabajo completo).
+  bool get facturable => !anulado && !excluirDeCaja && ordenId == null && facturaId == null;
+
   factory Pago.fromMap(String id, Map<String, dynamic> m) => Pago(
         id: id,
         numero: leerInt(m['numero']),
@@ -74,6 +82,7 @@ class Pago {
         anulado: m['anulado'] == true,
         excluirDeCaja: m['excluirDeCaja'] == true,
         items: ItemLinea.listaDesde(m['items']),
+        facturaId: leerTextoONull(m['facturaId']),
       );
 
   Map<String, dynamic> toMap() => {

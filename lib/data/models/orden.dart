@@ -79,6 +79,7 @@ class Orden {
     this.proximoServiceFecha,
     this.proximoServiceKm,
     this.recordatorioEnviado = false,
+    this.facturaId,
   });
 
   final String id;
@@ -103,6 +104,9 @@ class Orden {
   final DateTime? proximoServiceFecha;
   final int? proximoServiceKm;
   final bool recordatorioEnviado;
+
+  /// Factura electrónica emitida (la asigna el servidor).
+  final String? facturaId;
 
   bool get tieneProximoService => proximoServiceFecha != null || proximoServiceKm != null;
 
@@ -135,6 +139,7 @@ class Orden {
         proximoServiceFecha: leerFecha(m['proximoServiceFecha']),
         proximoServiceKm: m['proximoServiceKm'] == null ? null : leerInt(m['proximoServiceKm']),
         recordatorioEnviado: m['recordatorioEnviado'] == true,
+        facturaId: leerTextoONull(m['facturaId']),
       );
 
   /// Representación para guardar. Incluye campos derivados (`total`,
@@ -160,6 +165,8 @@ class Orden {
         'proximoServiceFecha': proximoServiceFecha,
         'proximoServiceKm': proximoServiceKm,
         'recordatorioEnviado': recordatorioEnviado,
+        // Se reescribe tal cual: las reglas impiden que la app lo cambie.
+        if (facturaId != null) 'facturaId': facturaId,
         'keywords': Busqueda.keywords([
           clienteNombre,
           equipo.descripcion,
@@ -208,5 +215,6 @@ class Orden {
         proximoServiceFecha: limpiarProximoService ? null : (proximoServiceFecha ?? this.proximoServiceFecha),
         proximoServiceKm: limpiarProximoService ? null : (proximoServiceKm ?? this.proximoServiceKm),
         recordatorioEnviado: recordatorioEnviado ?? this.recordatorioEnviado,
+        facturaId: facturaId,
       );
 }

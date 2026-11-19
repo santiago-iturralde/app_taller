@@ -10,6 +10,8 @@ import '../../data/models/caja.dart';
 import '../../data/models/negocio.dart';
 import '../planes/pro.dart';
 import '../trabajos/orden_detalle_page.dart';
+import '../facturacion/factura_detalle_page.dart';
+import '../facturacion/facturar.dart';
 
 Future<void> imprimirRecibo(BuildContext context, Pago pago) async {
   if (!await exigirPro(context, FuncionPro.recibosPdf) || !context.mounted) return;
@@ -83,6 +85,15 @@ class FilaPago extends StatelessWidget {
               'recibo' => imprimirRecibo(context, p),
               'trabajo' => abrirPagina(context, OrdenDetallePage(ordenId: p.ordenId!)),
               'anular' => anularPago(context, p),
+              'facturar' => facturar(
+                  context,
+                  origenTipo: 'pago',
+                  origenId: p.id,
+                  total: p.monto,
+                  nombreCliente: p.clienteNombre,
+                  clienteId: p.clienteId,
+                ),
+              'factura' => abrirPagina(context, FacturaDetallePage(facturaId: p.facturaId!)),
               _ => null,
             },
             itemBuilder: (_) => [
@@ -91,9 +102,13 @@ class FilaPago extends StatelessWidget {
                 child: ListTile(
                   leading: const Icon(Icons.receipt_long_outlined),
                   title: Text('Recibo N° ${Formato.numeroComprobante(p.numero)}'),
-                  trailing: Sesion.of(context).negocio.esPro ? null : const DistintivoPro(),
+                  trailing: Sesion.of(context).negocio.permite(FuncionPro.recibosPdf) ? null : const DistintivoPro(),
                 ),
               ),
+              if (p.facturaId != null)
+                const PopupMenuItem(value: 'factura', child: ListTile(leading: Icon(Icons.verified_outlined), title: Text('Ver factura')))
+              else if (p.facturable)
+                const PopupMenuItem(value: 'facturar', child: ListTile(leading: Icon(Icons.receipt_long_outlined), title: Text('Facturar'))),
               if (p.ordenId != null && mostrarCliente)
                 const PopupMenuItem(value: 'trabajo', child: ListTile(leading: Icon(Icons.build_outlined), title: Text('Ver trabajo'))),
               if (!p.anulado && Sesion.of(context).puede(Permiso.anularCobros))

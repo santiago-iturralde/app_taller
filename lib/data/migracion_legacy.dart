@@ -273,6 +273,7 @@ Future<void> crearNegocio({
   String direccion = '',
   String emailNegocio = '',
   bool tieneLogo = false,
+  int diasPrueba = 0,
   Json extra = const {},
 }) async {
   final existente = await db.negocio.get();
@@ -286,7 +287,12 @@ Future<void> crearNegocio({
       'direccion': direccion,
       'email': emailNegocio.isEmpty ? email : emailNegocio,
       'cuit': '',
-      'plan': 'free',
+      if (diasPrueba > 0) ...{
+        'plan': 'pro',
+        'prueba': true,
+        'planVence': Timestamp.fromDate(DateTime.now().add(Duration(days: diasPrueba))),
+      } else
+        'plan': 'free',
       'tieneLogo': tieneLogo,
       'plantillas': <String, String>{},
       'creado': FieldValue.serverTimestamp(),

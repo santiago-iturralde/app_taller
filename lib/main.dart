@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import 'app/arranque.dart';
 import 'app/preferencias.dart';
 import 'app/sesion.dart';
 import 'core/theme/app_theme.dart';
+import 'data/funciones.dart';
 import 'firebase_options.dart';
 
 /// Conecta a los emuladores locales de Firebase en lugar del proyecto real.
@@ -25,6 +27,7 @@ Future<void> main() async {
     // (antes, en otra terminal: firebase emulators:start --only "auth,firestore")
     await FirebaseAuth.instance.useAuthEmulator('localhost', 9099);
     FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080);
+    FirebaseFunctions.instanceFor(region: Funciones.region).useFunctionsEmulator('localhost', 5001);
   } else {
     // Caché local: la app sigue funcionando con mala conexión.
     FirebaseFirestore.instance.settings = const Settings(persistenceEnabled: true);

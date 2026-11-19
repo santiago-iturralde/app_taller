@@ -8,6 +8,7 @@ import '../data/models/negocio.dart';
 import '../data/repositories/caja_repository.dart';
 import '../data/repositories/clientes_repository.dart';
 import '../data/repositories/equipo_repository.dart';
+import '../data/repositories/facturacion_repository.dart';
 import '../data/repositories/negocio_repository.dart';
 import '../data/repositories/ordenes_repository.dart';
 import '../data/repositories/presupuestos_repository.dart';
@@ -31,9 +32,16 @@ class Sesion {
     required this.negocioRepo,
     required this.productos,
     required this.equipo,
+    required this.facturacion,
+    required this.esSuperadmin,
   });
 
-  factory Sesion.crear({required User usuario, required Negocio negocio, required RolMiembro rol}) {
+  factory Sesion.crear({
+    required User usuario,
+    required Negocio negocio,
+    required RolMiembro rol,
+    bool esSuperadmin = false,
+  }) {
     final db = Db(negocio.id);
     final productos = ProductosRepository(db, usuarioUid: usuario.uid, usuarioEmail: usuario.email ?? '');
     return Sesion._(
@@ -48,6 +56,8 @@ class Sesion {
       negocioRepo: NegocioRepository(db),
       productos: productos,
       equipo: EquipoRepository(db),
+      facturacion: FacturacionRepository(db),
+      esSuperadmin: esSuperadmin,
     );
   }
 
@@ -62,6 +72,10 @@ class Sesion {
   final NegocioRepository negocioRepo;
   final ProductosRepository productos;
   final EquipoRepository equipo;
+  final FacturacionRepository facturacion;
+
+  /// Administrador de la plataforma (vos): ve el panel de administración.
+  final bool esSuperadmin;
 
   /// ¿El usuario actual puede hacer [p]? (La UI usa esto para mostrar u
   /// ocultar acciones; las reglas de Firestore lo garantizan en el servidor.)
@@ -79,6 +93,8 @@ class Sesion {
         negocioRepo: negocioRepo,
         productos: productos,
         equipo: equipo,
+        facturacion: facturacion,
+        esSuperadmin: esSuperadmin,
       );
 
   static Sesion of(BuildContext context) {

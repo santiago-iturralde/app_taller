@@ -1,0 +1,9 @@
+{
+  "name": "workcontrol-admin-tools",
+  "private": true,
+  "description": "Herramientas de administración de la plataforma (se corren a mano)",
+  "type": "module",
+  "dependencies": {
+    "firebase-admin": "13.10.0"
+  }
+}
