@@ -9,7 +9,9 @@ import {
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
+  Timestamp,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   serverTimestamp,
@@ -543,10 +545,63 @@ describe('Administrador de la plataforma', () => {
     await assertFails(getDoc(doc(dbJefe(), `negocios/${ANA}/clientes/c1`)));
   });
 
-  test('no cambia planes desde la app (sólo por la función con auditoría)', async () => {
+  /** Cambio de plan como lo hace la app: negocio + auditoría en un lote. */
+  function cambiarPlan(db, { id = 'r1', negocio = {}, registro = {}, sinRegistro = false } = {}) {
+    const vence = Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 3600 * 1000));
+    const batch = writeBatch(db);
+    batch.update(doc(db, `negocios/${ANA}`), {
+      plan: 'pro', planVence: vence, prueba: false, planActualizado: serverTimestamp(), planAuditoria: id, ...negocio,
+    });
+    if (!sinRegistro) {
+      batch.set(doc(db, `auditoriaPlanes/${id}`), {
+        negocioId: ANA, negocioNombre: 'Taller', accion: 'activar', planAnterior: 'free', venceAnterior: null,
+        planNuevo: 'pro', venceNuevo: vence, monto: 30000, nota: '', porUid: JEFE, porEmail: 'jefe@x.com',
+        fecha: serverTimestamp(), ...registro,
+      });
+    }
+    return batch.commit();
+  }
+
+  test('cambia el plan dejando el registro de auditoría', async () => {
+    await assertSucceeds(cambiarPlan(dbJefe()));
+    await assertSucceeds(cambiarPlan(dbJefe(), {
+      id: 'r2',
+      negocio: { plan: 'free', planVence: deleteField() },
+      registro: { accion: 'gratis', planNuevo: 'free', venceNuevo: null, monto: null },
+    }));
+  });
+
+  test('sin auditoría, o con una auditoría falsa o reutilizada, no puede', async () => {
     const db = dbJefe();
     await assertFails(updateDoc(doc(db, `negocios/${ANA}`), { plan: 'pro' }));
+    await assertFails(cambiarPlan(db, { sinRegistro: true }));
+    await assertFails(cambiarPlan(db, { id: 'a1', sinRegistro: true })); // registro viejo
+    await assertFails(cambiarPlan(db, { registro: { porEmail: 'otro@x.com' } }));
+    await assertFails(cambiarPlan(db, { registro: { planNuevo: 'basico' } }));
+    await assertFails(cambiarPlan(db, { registro: { monto: -5 } }));
     await assertFails(setDoc(doc(db, 'auditoriaPlanes/a2'), { negocioId: ANA }));
+  });
+
+  test('sólo toca el plan, con valores coherentes', async () => {
+    const db = dbJefe();
+    await assertFails(cambiarPlan(db, { negocio: { nombre: 'Otro' } }));
+    await assertFails(cambiarPlan(db, { negocio: { ownerUid: JEFE } }));
+    await assertFails(cambiarPlan(db, { negocio: { plan: 'enterprise' } }));
+    await assertFails(cambiarPlan(db, { negocio: { planVence: Timestamp.fromDate(new Date(2020, 0, 1)) } }));
+    await assertFails(cambiarPlan(db, { negocio: { plan: 'basico', prueba: true }, registro: { planNuevo: 'basico' } }));
+  });
+
+  test('la auditoría no se edita ni se borra', async () => {
+    await assertFails(updateDoc(doc(dbJefe(), 'auditoriaPlanes/a1'), { monto: 1 }));
+    await assertFails(deleteDoc(doc(dbJefe(), 'auditoriaPlanes/a1')));
+  });
+
+  test('un usuario común no puede usar el mismo camino', async () => {
+    const db = dbDe(ANA);
+    const batch = writeBatch(db);
+    batch.update(doc(db, `negocios/${ANA}`), { plan: 'pro', planAuditoria: 'x', planActualizado: serverTimestamp() });
+    batch.set(doc(db, 'auditoriaPlanes/x'), { negocioId: ANA, accion: 'activar', planNuevo: 'pro', porUid: ANA });
+    await assertFails(batch.commit());
   });
 
   test('un usuario común no ve la auditoría', async () => {

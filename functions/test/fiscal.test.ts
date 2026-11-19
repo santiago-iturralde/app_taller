@@ -15,7 +15,6 @@ import {
   prepararReceptor,
   urlQr,
 } from '../src/arca/comprobantes';
-import { nuevoVencimiento, sumarMeses } from '../src/handlers/admin';
 import { cifrar, descifrar } from '../src/util/cifrado';
 
 const CUIT_VALIDO = '33693450239';
@@ -169,24 +168,3 @@ describe('fechas y QR', () => {
   });
 });
 
-describe('vencimiento de planes', () => {
-  const ahora = new Date('2026-11-18T12:00:00Z');
-
-  test('suma meses respetando fin de mes', () => {
-    assert.equal(sumarMeses(new Date('2026-01-31T00:00:00Z'), 1).toISOString().slice(0, 10), '2026-02-28');
-    assert.equal(sumarMeses(new Date('2026-11-18T00:00:00Z'), 12).toISOString().slice(0, 10), '2027-11-18');
-  });
-
-  test('renovar el mismo plan antes de vencer suma al tiempo restante', () => {
-    const vence = new Date('2026-12-10T12:00:00Z');
-    const r = nuevoVencimiento({ planActual: 'pro', venceActual: vence, planNuevo: 'pro', meses: 1, ahora });
-    assert.equal(r.toISOString().slice(0, 10), '2027-01-10');
-  });
-
-  test('plan vencido o cambio de plan: cuenta desde hoy', () => {
-    const vencido = new Date('2026-10-01T12:00:00Z');
-    assert.equal(nuevoVencimiento({ planActual: 'pro', venceActual: vencido, planNuevo: 'pro', meses: 1, ahora }).toISOString().slice(0, 10), '2026-12-18');
-    const vigente = new Date('2026-12-10T12:00:00Z');
-    assert.equal(nuevoVencimiento({ planActual: 'basico', venceActual: vigente, planNuevo: 'pro', meses: 1, ahora }).toISOString().slice(0, 10), '2026-12-18');
-  });
-});

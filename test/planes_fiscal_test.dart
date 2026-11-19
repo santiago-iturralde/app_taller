@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:taller_reparaciones/data/models/caja.dart';
+import 'package:taller_reparaciones/data/models/cambio_plan.dart';
 import 'package:taller_reparaciones/data/models/fiscal.dart';
 import 'package:taller_reparaciones/data/models/negocio.dart';
 import 'package:taller_reparaciones/data/models/orden.dart';
@@ -50,6 +51,48 @@ void main() {
     test('valores desconocidos caen en Gratis', () {
       expect(Plan.desde('enterprise'), Plan.gratis);
       expect(Plan.desde('basico'), Plan.basico);
+    });
+  });
+
+  group('Cambios de plan del administrador', () {
+    final ahora = DateTime(2026, 11, 18, 12);
+
+    test('suma meses respetando fin de mes', () {
+      expect(sumarMeses(DateTime(2026, 1, 31), 1), DateTime(2026, 2, 28));
+      expect(sumarMeses(DateTime(2028, 1, 31), 1), DateTime(2028, 2, 29));
+      expect(sumarMeses(DateTime(2026, 11, 18), 12), DateTime(2027, 11, 18));
+      expect(sumarMeses(DateTime(2026, 11, 30), 3), DateTime(2027, 2, 28));
+    });
+
+    test('renovar el mismo plan antes de vencer suma al tiempo restante', () {
+      final c = CambioPlan.activar(_negocio('pro', vence: DateTime(2026, 12, 10, 12)), Plan.pro, 1, ahora: ahora);
+      expect(c.vence, DateTime(2027, 1, 10, 12));
+      expect(c.prueba, isFalse);
+      expect(c.accion, 'activar');
+    });
+
+    test('plan vencido, prueba o cambio de plan: cuenta desde hoy', () {
+      expect(CambioPlan.activar(_negocio('pro', vence: DateTime(2026, 10, 1)), Plan.pro, 1, ahora: ahora).vence,
+          DateTime(2026, 12, 18, 12));
+      expect(CambioPlan.activar(_negocio('basico', vence: DateTime(2026, 12, 10)), Plan.pro, 1, ahora: ahora).vence,
+          DateTime(2026, 12, 18, 12));
+      expect(CambioPlan.activar(_negocio('free'), Plan.basico, 6, ahora: ahora).vence, DateTime(2027, 5, 18, 12));
+    });
+
+    test('prueba y Gratis', () {
+      final p = CambioPlan.prueba(7, ahora: ahora);
+      expect((p.plan, p.prueba, p.vence), (Plan.pro, true, DateTime(2026, 11, 25, 12)));
+      const g = CambioPlan.gratis();
+      expect((g.plan, g.prueba, g.vence), (Plan.gratis, false, null));
+    });
+
+    test('valida meses, días y plan', () {
+      final n = _negocio('free');
+      expect(() => CambioPlan.activar(n, Plan.pro, 0), throwsArgumentError);
+      expect(() => CambioPlan.activar(n, Plan.pro, 37), throwsArgumentError);
+      expect(() => CambioPlan.activar(n, Plan.gratis, 1), throwsArgumentError);
+      expect(() => CambioPlan.prueba(0), throwsArgumentError);
+      expect(() => CambioPlan.prueba(91), throwsArgumentError);
     });
   });
 

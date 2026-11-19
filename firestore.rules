@@ -28,10 +28,32 @@ service cloud.firestore {
     }
 
     // Administrador de la plataforma (custom claim asignado con
-    // tools/admin/superadmin.js). Sólo lee: los cambios de plan pasan por
-    // la función adminCambiarPlan, que deja auditoría.
+    // tools/admin/superadmin.js). Lee negocios, miembros y auditoría (nunca
+    // los datos internos) y cambia planes sólo con registro de auditoría.
     function superadmin() {
       return autenticado() && request.auth.token.superadmin == true;
+    }
+
+    function auditoria(id) {
+      return /databases/$(database)/documents/auditoriaPlanes/$(id);
+    }
+
+    // Cambio de plan del administrador: sólo los campos del plan, con
+    // valores coherentes y un registro de auditoría NUEVO creado en la
+    // misma operación (no se puede reutilizar uno viejo).
+    function cambioDePlanAuditado() {
+      let d = request.resource.data;
+      return cambios().hasOnly(['plan', 'planVence', 'prueba', 'planActualizado', 'planAuditoria'])
+        && d.plan in ['free', 'basico', 'pro']
+        && d.prueba is bool
+        && (!d.prueba || d.plan == 'pro')
+        && (d.plan == 'free'
+          ? !('planVence' in d) && d.prueba == false
+          : d.planVence is timestamp && d.planVence > request.time)
+        && d.planActualizado == request.time
+        && d.planAuditoria is string
+        && !exists(auditoria(d.planAuditoria))
+        && existsAfter(auditoria(d.planAuditoria));
     }
 
     // El trabajo o cobro facturado lo marca sólo el servidor.
@@ -125,9 +147,10 @@ service cloud.firestore {
             && request.resource.data.planVence <= request.time + duration.value(16, 'd'))
         );
 
-      allow update: if administra(negocioId)
-        && !cambia(['plan', 'planVence', 'prueba', 'planActualizado', 'ownerUid'])
-        && textoValido('nombre', 120);
+      allow update: if (administra(negocioId)
+          && !cambia(['plan', 'planVence', 'prueba', 'planActualizado', 'planAuditoria', 'ownerUid'])
+          && textoValido('nombre', 120))
+        || (superadmin() && cambioDePlanAuditado());
 
       allow delete: if false;
 
@@ -353,10 +376,25 @@ service cloud.firestore {
       }
     }
 
-    // Registro de cambios de plan (lo escribe la función adminCambiarPlan).
+    // Registro de cambios de plan: lo crea el administrador junto con el
+    // cambio (ver cambioDePlanAuditado) y nunca se modifica ni se borra.
     match /auditoriaPlanes/{id} {
       allow read: if superadmin();
-      allow write: if false;
+      allow create: if superadmin()
+        && request.resource.data.keys().hasOnly(['negocioId', 'negocioNombre', 'accion', 'planAnterior',
+          'venceAnterior', 'planNuevo', 'venceNuevo', 'monto', 'nota', 'porUid', 'porEmail', 'fecha'])
+        && request.resource.data.negocioId is string
+        && request.resource.data.accion in ['activar', 'prueba', 'gratis']
+        && request.resource.data.porUid == request.auth.uid
+        && request.resource.data.porEmail == request.auth.token.get('email', '')
+        && request.resource.data.fecha == request.time
+        && (request.resource.data.monto == null
+          || (request.resource.data.monto is number && request.resource.data.monto >= 0))
+        && request.resource.data.nota is string && request.resource.data.nota.size() <= 500
+        && getAfter(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.planAuditoria == id
+        && getAfter(/databases/$(database)/documents/negocios/$(request.resource.data.negocioId)).data.plan
+          == request.resource.data.planNuevo;
+      allow update, delete: if false;
     }
 
     // Configuración global (aviso de nueva versión, etc.). Sólo lectura.

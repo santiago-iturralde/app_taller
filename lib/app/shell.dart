@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
+import 'app_info.dart';
 import '../core/widgets/componentes.dart';
 import '../core/widgets/feedback.dart';
 import '../data/models/orden.dart';
@@ -39,6 +40,9 @@ enum _Seccion {
   /// Secciones de la barra inferior en celular (el resto va en "Más").
   static const movil = [inicio, trabajos, clientes, caja];
   static const masMovil = [presupuestos, productos, facturas, reportes, ajustes];
+
+  /// Si la sección está habilitada en esta versión.
+  bool get disponible => this != facturas || AppInfo.facturacionDisponible;
 }
 
 /// Estructura principal: barra lateral en escritorio, barra inferior en
@@ -127,7 +131,7 @@ class _ShellState extends State<Shell> {
           mainAxisSize: MainAxisSize.min,
           children: [
             for (final s in _Seccion.masMovil.where(
-              (s) => s != _Seccion.reportes || Sesion.of(context).puede(Permiso.verReportes),
+              (s) => s.disponible && s != _Seccion.reportes || Sesion.of(context).puede(Permiso.verReportes),
             ))
               ListTile(
                 leading: Icon(s.icono),
@@ -253,7 +257,7 @@ class _BarraLateral extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 children: [
                   for (final s in _Seccion.values.where(
-                    (s) => s != _Seccion.ajustes && (s != _Seccion.reportes || sesion.puede(Permiso.verReportes)),
+                    (s) => s.disponible && s != _Seccion.ajustes && (s != _Seccion.reportes || sesion.puede(Permiso.verReportes)),
                   ))
                     _Item(
                       seccion: s,

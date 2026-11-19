@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_info.dart';
 import '../../app/sesion.dart';
 import '../../core/pdf/documentos_pdf.dart';
 import '../../core/theme/app_theme.dart';
@@ -107,7 +108,7 @@ class FilaPago extends StatelessWidget {
               ),
               if (p.facturaId != null)
                 const PopupMenuItem(value: 'factura', child: ListTile(leading: Icon(Icons.verified_outlined), title: Text('Ver factura')))
-              else if (p.facturable)
+              else if (AppInfo.facturacionDisponible && p.facturable)
                 const PopupMenuItem(value: 'facturar', child: ListTile(leading: Icon(Icons.receipt_long_outlined), title: Text('Facturar'))),
               if (p.ordenId != null && mostrarCliente)
                 const PopupMenuItem(value: 'trabajo', child: ListTile(leading: Icon(Icons.build_outlined), title: Text('Ver trabajo'))),

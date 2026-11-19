@@ -55,7 +55,8 @@ class PlanesPage extends StatelessWidget {
                   actual: actual == Plan.basico,
                   funciones: [
                     'Todo lo del plan Gratis',
-                    for (final f in FuncionPro.values.where((f) => f.planMinimo == Plan.basico)) f.nombre,
+                    for (final f in FuncionPro.values.where((f) => f.planMinimo == Plan.basico))
+                      f == FuncionPro.facturacion && !AppInfo.facturacionDisponible ? '${f.nombre} (próximamente)' : f.nombre,
                   ],
                 ),
                 _Plan(

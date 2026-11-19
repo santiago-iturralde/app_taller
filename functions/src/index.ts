@@ -3,8 +3,9 @@
  *
  * - Facturación electrónica ARCA: las claves privadas y los tickets de
  *   acceso nunca salen del servidor y se guardan cifrados.
- * - Administración de planes: sólo el administrador de la plataforma
- *   (custom claim "superadmin"), con registro de auditoría.
+ *
+ * (Los cambios de plan los hace el administrador desde la app; las reglas
+ * de Firestore exigen el custom claim "superadmin" y la auditoría.)
  */
 import { initializeApp } from 'firebase-admin/app';
 
@@ -18,4 +19,3 @@ export {
   arcaProbarConexion,
   arcaReintentar,
 } from './handlers/arca';
-export { adminCambiarPlan } from './handlers/admin';

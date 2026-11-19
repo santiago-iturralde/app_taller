@@ -43,7 +43,7 @@ class AjustesPage extends StatelessWidget {
                   const Seccion('Equipo'),
                   const EquipoSeccion(),
                 ],
-                if (sesion.puede(Permiso.editarNegocio)) ...[
+                if (AppInfo.facturacionDisponible && sesion.puede(Permiso.editarNegocio)) ...[
                   const Seccion('Facturación electrónica'),
                   AppCard(
                     onTap: () => abrirPagina(context, const ConfigArcaPage()),

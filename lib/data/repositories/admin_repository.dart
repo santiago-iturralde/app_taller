@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../db.dart';
-import '../funciones.dart';
+import '../models/cambio_plan.dart';
 import '../models/comunes.dart';
 import '../models/negocio.dart';
 
@@ -49,11 +51,15 @@ class RegistroPlan {
 }
 
 /// Datos de la plataforma para el administrador (custom claim superadmin).
-/// Las reglas sólo le permiten leer negocios, miembros y auditoría; los
-/// cambios de plan pasan por la función adminCambiarPlan.
+/// Las reglas le permiten leer negocios, miembros y auditoría (nunca los
+/// datos internos de cada negocio) y cambiar el plan sólo si en la misma
+/// transacción deja el registro de auditoría.
 class AdminRepository {
-  AdminRepository({FirebaseFirestore? firestore}) : _fs = firestore ?? FirebaseFirestore.instance;
+  AdminRepository({FirebaseFirestore? firestore, FirebaseAuth? auth})
+      : _fs = firestore ?? FirebaseFirestore.instance,
+        _auth = auth ?? FirebaseAuth.instance;
   final FirebaseFirestore _fs;
+  final FirebaseAuth _auth;
 
   Stream<List<(Negocio, DateTime?)>> negocios({int limite = 100}) => _fs
       .collection('negocios')
@@ -87,18 +93,61 @@ class AdminRepository {
 
   /// Activa un plan pago por [meses] (si ya lo tenía vigente, se suma).
   Future<void> activarPlan(String negocioId, Plan plan, int meses, {double? monto, String nota = ''}) =>
-      Funciones.llamar('adminCambiarPlan', {
-        'negocioId': negocioId,
-        'accion': 'activar',
-        'plan': plan.valor,
-        'meses': meses,
-        'monto': monto,
-        'nota': nota,
-      });
+      _cambiarPlan(negocioId, (n) => CambioPlan.activar(n, plan, meses), monto: monto, nota: nota);
 
   Future<void> darPrueba(String negocioId, int dias, {String nota = ''}) =>
-      Funciones.llamar('adminCambiarPlan', {'negocioId': negocioId, 'accion': 'prueba', 'dias': dias, 'nota': nota});
+      _cambiarPlan(negocioId, (_) => CambioPlan.prueba(dias), nota: nota);
 
   Future<void> pasarAGratis(String negocioId, {String nota = ''}) =>
-      Funciones.llamar('adminCambiarPlan', {'negocioId': negocioId, 'accion': 'gratis', 'nota': nota});
+      _cambiarPlan(negocioId, (_) => const CambioPlan.gratis(), nota: nota);
+
+  /// Cambia el plan y registra la auditoría en una sola transacción. Las
+  /// reglas rechazan el cambio si falta el registro (campo planAuditoria).
+  Future<void> _cambiarPlan(
+    String negocioId,
+    CambioPlan Function(Negocio actual) calcular, {
+    double? monto,
+    String nota = '',
+  }) async {
+    if (monto != null && (!monto.isFinite || monto < 0)) throw const ErrorDeNegocio('Monto inválido.');
+    final usuario = _auth.currentUser;
+    if (usuario == null) throw const ErrorDeNegocio('Tu sesión venció. Volvé a ingresar.');
+
+    final ref = _fs.collection('negocios').doc(negocioId);
+    final registro = _fs.collection('auditoriaPlanes').doc();
+    await _fs.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      if (!snap.exists) throw const ErrorDeNegocio('El negocio no existe.');
+      final actual = Negocio.fromMap(snap.id, snap.data()!);
+      final CambioPlan cambio;
+      try {
+        cambio = calcular(actual);
+      } on ArgumentError catch (e) {
+        throw ErrorDeNegocio('${e.message}');
+      }
+      final vence = cambio.vence == null ? null : Timestamp.fromDate(cambio.vence!);
+
+      tx.update(ref, {
+        'plan': cambio.plan.valor,
+        'planVence': vence ?? FieldValue.delete(),
+        'prueba': cambio.prueba,
+        'planActualizado': FieldValue.serverTimestamp(),
+        'planAuditoria': registro.id,
+      });
+      tx.set(registro, {
+        'negocioId': negocioId,
+        'negocioNombre': actual.nombre,
+        'accion': cambio.accion,
+        'planAnterior': actual.plan.valor,
+        'venceAnterior': actual.planVence == null ? null : Timestamp.fromDate(actual.planVence!),
+        'planNuevo': cambio.plan.valor,
+        'venceNuevo': vence,
+        'monto': monto,
+        'nota': nota.trim().length > 500 ? nota.trim().substring(0, 500) : nota.trim(),
+        'porUid': usuario.uid,
+        'porEmail': usuario.email ?? '',
+        'fecha': FieldValue.serverTimestamp(),
+      });
+    });
+  }
 }

@@ -3,7 +3,8 @@
 //
 // Verifica: permisos, plan requerido, generación de la solicitud de
 // certificado, cifrado de la clave, carga del certificado, protección
-// contra facturar dos veces y la administración de planes con auditoría.
+// contra facturar dos veces y el corte al vencer o bajar el plan.
+// (Los cambios de plan del administrador se prueban en tools/reglas_test.)
 
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -11,7 +12,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
-const { getFirestore, Timestamp } = require('firebase-admin/firestore');
+const { FieldValue, getFirestore, Timestamp } = require('firebase-admin/firestore');
 const forge = require('node-forge');
 
 const PROYECTO = 'demo-workcontrol';
@@ -70,7 +71,6 @@ async function paso(nombre, fn) {
 
 const duenio = await crearUsuario('duenio@lubri.com');
 const intruso = await crearUsuario('intruso@x.com');
-const jefe = await crearUsuario('jefe@workcontrol.com', { superadmin: true });
 const N = duenio.uid;
 
 await db.doc(`negocios/${N}`).set({ nombre: 'Lubricentro Demo', rubro: 'lubricentro', ownerUid: N, plan: 'free' });
@@ -97,26 +97,15 @@ await paso('con plan Gratis la facturación está bloqueada', async () => {
   assert.match(r.mensaje, /plan/i);
 });
 
-await paso('el dueño no puede cambiarse el plan', async () => {
-  const r = await llamar('adminCambiarPlan', { negocioId: N, accion: 'activar', plan: 'pro', meses: 12 }, duenio);
-  assert.equal(r.error, 'PERMISSION_DENIED');
-});
-
-await paso('el administrador activa el plan y queda auditado', async () => {
-  const r = await llamar('adminCambiarPlan', { negocioId: N, accion: 'activar', plan: 'basico', meses: 1, monto: 15000, nota: 'Transferencia' }, jefe);
-  assert.equal(r.ok.plan, 'basico');
-  const n = (await db.doc(`negocios/${N}`).get()).data();
-  assert.equal(n.plan, 'basico');
-  assert.ok(n.planVence.toDate() > new Date());
-  const a = await db.collection('auditoriaPlanes').where('negocioId', '==', N).get();
-  assert.equal(a.size, 1);
-  assert.equal(a.docs[0].data().monto, 15000);
-  assert.equal(a.docs[0].data().porEmail, 'jefe@workcontrol.com');
-});
-
-await paso('validación de datos del administrador', async () => {
-  assert.equal((await llamar('adminCambiarPlan', { negocioId: N, accion: 'activar', plan: 'pro', meses: 99 }, jefe)).error, 'INVALID_ARGUMENT');
-  assert.equal((await llamar('adminCambiarPlan', { negocioId: 'no/valido', accion: 'gratis' }, jefe)).error, 'INVALID_ARGUMENT');
+await paso('con plan vencido se bloquea y con plan vigente se habilita', async () => {
+  const dias = (n) => Timestamp.fromDate(new Date(Date.now() + n * 24 * 3600 * 1000));
+  await db.doc(`negocios/${N}`).update({ plan: 'basico', planVence: dias(-1), prueba: false });
+  const vencido = await llamar('arcaProbarConexion', { negocioId: N }, duenio);
+  assert.equal(vencido.error, 'FAILED_PRECONDITION');
+  assert.match(vencido.mensaje, /plan/i);
+  await db.doc(`negocios/${N}`).update({ planVence: dias(30) });
+  const vigente = await llamar('arcaProbarConexion', { negocioId: N }, duenio);
+  assert.doesNotMatch(vigente.mensaje ?? '', /plan/i, 'ya no lo frena el plan (sí la falta de certificado)');
 });
 
 let csr;
@@ -183,7 +172,7 @@ await paso('una factura A exige CUIT válido del cliente', async () => {
 });
 
 await paso('pasar a Gratis corta la facturación', async () => {
-  assert.ok((await llamar('adminCambiarPlan', { negocioId: N, accion: 'gratis' }, jefe)).ok);
+  await db.doc(`negocios/${N}`).update({ plan: 'free', planVence: FieldValue.delete() });
   assert.equal((await llamar('arcaProbarConexion', { negocioId: N }, duenio)).error, 'FAILED_PRECONDITION');
 });
 

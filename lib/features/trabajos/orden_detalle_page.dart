@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/app_info.dart';
 import '../../app/sesion.dart';
 import '../../core/pdf/documentos_pdf.dart';
 import '../../core/theme/app_theme.dart';
@@ -467,7 +468,7 @@ class _Importe extends StatelessWidget {
               icon: const Icon(Icons.receipt_long_outlined),
               label: const Text('Ver factura'),
             ),
-          ] else if (orden.estado != EstadoOrden.cancelado && !orden.sinPresupuestar) ...[
+          ] else if (AppInfo.facturacionDisponible && orden.estado != EstadoOrden.cancelado && !orden.sinPresupuestar) ...[
             const SizedBox(height: Espacio.s),
             OutlinedButton.icon(
               onPressed: () => facturar(

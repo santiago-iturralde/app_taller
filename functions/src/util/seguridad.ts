@@ -10,15 +10,6 @@ export function usuario(req: CallableRequest<unknown>): { uid: string; email: st
   return { uid: req.auth.uid, email: String(req.auth.token.email ?? '') };
 }
 
-/** Exige el permiso de administrador de la plataforma (custom claim). */
-export function exigirSuperadmin(req: CallableRequest<unknown>): { uid: string; email: string } {
-  const u = usuario(req);
-  if (req.auth?.token.superadmin !== true) {
-    throw new HttpsError('permission-denied', 'Sólo el administrador de la plataforma puede hacer esto.');
-  }
-  return u;
-}
-
 /** Verifica que el usuario sea miembro del negocio (y con alguno de los roles). */
 export async function exigirMiembro(negocioId: string, uid: string, roles: Rol[] = ['owner', 'admin', 'empleado']): Promise<Rol> {
   if (!negocioId || typeof negocioId !== 'string' || negocioId.includes('/')) {

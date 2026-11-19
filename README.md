@@ -27,7 +27,8 @@ defecto, pero el motor es el mismo para todos.
   lo más vendido, ganancia bruta y margen por producto, inventario valorizado.
 - **Equipo (PRO)**: el dueño invita por email a administradores y empleados, con permisos por rol.
 - **Facturación electrónica ARCA (Básico/PRO)**: facturas A, B y C y notas de crédito desde cada trabajo
-  o venta, con CAE, código QR y PDF; configuración guiada del certificado.
+  o venta, con CAE, código QR y PDF; configuración guiada del certificado. Necesita el plan Blaze de
+  Firebase: se prende con `AppInfo.facturacionDisponible` (ver la guía de publicación).
 - **Planes**: Gratis, Básico y PRO, prueba gratis para negocios nuevos y aviso de vencimiento.
 - **Panel de administración** (sólo para el dueño de la plataforma): negocios, planes, vencimientos,
   cobros registrados y auditoría de cada cambio.
@@ -45,7 +46,7 @@ lib/          App Flutter
   features/   Una carpeta por sección: inicio, trabajos, clientes, …
 functions/    Backend (Cloud Functions, TypeScript)
   src/arca/   Facturación electrónica: WSAA, WSFEv1, certificados, QR
-  src/handlers/  Funciones que llama la app (ARCA y administración)
+  src/handlers/  Funciones que llama la app (ARCA)
 tools/        Tests de reglas y script de administrador
 docs/         Guía de publicación
 ```
@@ -100,7 +101,8 @@ Las reglas están en [`firestore.rules`](firestore.rules) y tienen tests en
 [`tools/reglas_test`](tools/reglas_test). Garantizan, entre otras cosas, que:
 
 - cada negocio sólo es visible para sus miembros;
-- **el plan PRO no se puede activar desde la app** (sólo desde la consola o un backend);
+- **los planes sólo los cambia el administrador de la plataforma** (custom claim `superadmin`), y cada
+  cambio exige un registro de auditoría nuevo en la misma operación;
 - los cobros no se borran ni se editan (sólo se anulan) y la numeración no retrocede;
 - un trabajo con cobros no se puede eliminar;
 - los permisos de cada rol (tabla de arriba) se validan en el servidor, no sólo en la app;
