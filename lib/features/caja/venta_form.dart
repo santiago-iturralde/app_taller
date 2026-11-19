@@ -116,8 +116,8 @@ Future<void> nuevoIngreso(BuildContext context) async {
         ),
         ListTile(
           leading: const Icon(Icons.add_card_rounded),
-          title: const Text('Cobro suelto'),
-          subtitle: const Text('Un importe con su concepto, sin detalle de ítems.'),
+          title: const Text('Recibo'),
+          subtitle: const Text('Como el talonario: recibí de, la suma de, en concepto de. Se imprime en PDF.'),
           onTap: () => Navigator.pop(sheet, 'cobro'),
         ),
         const SizedBox(height: Espacio.s),

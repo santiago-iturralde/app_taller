@@ -37,10 +37,18 @@ class Pago {
     this.excluirDeCaja = false,
     this.items = const [],
     this.facturaId,
+    this.numeroAnterior = '',
   });
 
   final String id;
+
+  /// Número de recibo correlativo (0 en los importados del sistema anterior).
   final int numero;
+
+  /// Número que tenía el recibo en el sistema anterior.
+  final String numeroAnterior;
+
+  bool get delSistemaAnterior => numero == 0;
   final double monto;
   final DateTime fecha;
   final MedioPago medio;
@@ -83,6 +91,7 @@ class Pago {
         excluirDeCaja: m['excluirDeCaja'] == true,
         items: ItemLinea.listaDesde(m['items']),
         facturaId: leerTextoONull(m['facturaId']),
+        numeroAnterior: leerTexto(m['numeroAnterior']),
       );
 
   Map<String, dynamic> toMap() => {
@@ -98,6 +107,7 @@ class Pago {
         'anulado': anulado,
         'excluirDeCaja': excluirDeCaja,
         if (items.isNotEmpty) 'items': items.map((i) => i.toMap()).toList(),
+        if (numeroAnterior.isNotEmpty) 'numeroAnterior': numeroAnterior,
       };
 }
 

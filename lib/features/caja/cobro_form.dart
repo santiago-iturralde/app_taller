@@ -11,6 +11,7 @@ import '../../data/models/caja.dart';
 import '../../data/models/cliente.dart';
 import '../../data/models/orden.dart';
 import '../clientes/selector_cliente.dart';
+import 'widgets_caja.dart';
 
 /// Registra un cobro, asociado a un trabajo o suelto (venta de mostrador,
 /// seña, etc.). Devuelve el [Pago] creado.
@@ -68,21 +69,29 @@ class _CobroFormState extends State<CobroForm> {
         clienteNombre: _cliente?.nombre ?? '',
         ordenId: orden?.id,
       );
-    }, exito: 'Cobro registrado');
+    });
     if (!mounted) return;
     setState(() => _guardando = false);
-    if (ok) Navigator.pop(context, pago);
+    if (!ok) return;
+    final hecho = pago!;
+    final navegador = Navigator.of(context);
+    mostrarMensaje(
+      context,
+      '${orden == null ? 'Recibo guardado' : 'Cobro registrado'} · N° ${Formato.numeroComprobante(hecho.numero)}',
+      accion: SnackBarAction(label: 'Imprimir', onPressed: () => imprimirRecibo(navegador.context, hecho)),
+    );
+    navegador.pop(hecho);
   }
 
   @override
   Widget build(BuildContext context) {
     final orden = widget.orden;
     return FormularioScaffold(
-      titulo: 'Registrar cobro',
+      titulo: orden == null ? 'Nuevo recibo' : 'Registrar cobro',
       formKey: _form,
       guardando: _guardando,
       onGuardar: _guardar,
-      textoGuardar: 'Registrar cobro',
+      textoGuardar: orden == null ? 'Guardar recibo' : 'Registrar cobro',
       children: [
         if (orden != null) ...[
           AppCard(
@@ -104,7 +113,7 @@ class _CobroFormState extends State<CobroForm> {
           CampoClienteOpcional(onCambio: (c) => setState(() => _cliente = c)),
           espacioCampos,
         ],
-        CampoMonto(controller: _monto, etiqueta: 'Monto cobrado', autofocus: true),
+        CampoMonto(controller: _monto, etiqueta: orden == null ? 'La suma de' : 'Monto cobrado', autofocus: true),
         const GrupoFormulario('Forma de pago'),
         Wrap(
           spacing: Espacio.s,
@@ -132,8 +141,8 @@ class _CobroFormState extends State<CobroForm> {
           controller: _concepto,
           textCapitalization: TextCapitalization.sentences,
           decoration: InputDecoration(
-            labelText: 'Concepto',
-            hintText: orden != null ? 'Se completa automáticamente' : 'Ej: Venta de aceite 5W30',
+            labelText: orden == null ? 'En concepto de' : 'Concepto',
+            hintText: orden != null ? 'Se completa automáticamente' : 'Ej: Reparación de amoladora',
           ),
           validator: (v) => (orden == null && (v == null || v.trim().isEmpty)) ? 'Indicá el concepto' : null,
         ),

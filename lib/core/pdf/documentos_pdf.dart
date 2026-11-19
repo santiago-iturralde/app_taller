@@ -62,7 +62,7 @@ class DocumentosPdf {
     final rubro = negocio.rubro;
     return _documento(
       titulo: 'ORDEN DE TRABAJO',
-      numero: o.numero,
+      numero: Formato.numeroComprobante(o.numero),
       fecha: o.fechaIngreso,
       contenido: [
         _bloqueCliente(o.clienteNombre, o.clienteTelefono),
@@ -92,7 +92,7 @@ class DocumentosPdf {
 
   Future<Uint8List> presupuesto(Presupuesto p) => _documento(
         titulo: 'PRESUPUESTO',
-        numero: p.numero,
+        numero: Formato.numeroComprobante(p.numero),
         fecha: p.fecha,
         contenido: [
           _bloqueCliente(p.clienteNombre, p.clienteTelefono),
@@ -117,7 +117,7 @@ class DocumentosPdf {
 
   Future<Uint8List> recibo(Pago p) => _documento(
         titulo: 'RECIBO',
-        numero: p.numero,
+        numero: Formato.numeroRecibo(p.numero, p.numeroAnterior),
         fecha: p.fecha,
         formato: PdfPageFormat.a5.landscape,
         contenido: [
@@ -275,12 +275,12 @@ class DocumentosPdf {
 
   Future<Uint8List> _documento({
     required String titulo,
-    required int numero,
+    required String numero,
     required DateTime fecha,
     required List<pw.Widget> contenido,
     PdfPageFormat formato = PdfPageFormat.a4,
   }) async {
-    final doc = pw.Document(theme: _tema, title: '$titulo ${Formato.numeroComprobante(numero)}', author: negocio.nombre);
+    final doc = pw.Document(theme: _tema, title: '$titulo $numero', author: negocio.nombre);
     doc.addPage(pw.MultiPage(
       pageFormat: formato,
       margin: const pw.EdgeInsets.all(32),
@@ -297,7 +297,7 @@ class DocumentosPdf {
     return doc.save();
   }
 
-  pw.Widget _encabezado(String titulo, int numero, DateTime fecha) {
+  pw.Widget _encabezado(String titulo, String numero, DateTime fecha) {
     final contacto = [
       negocio.direccion,
       if (negocio.telefono.isNotEmpty) 'Tel: ${negocio.telefono}',
@@ -330,7 +330,7 @@ class DocumentosPdf {
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
               pw.Text(titulo, style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: _acento)),
-              pw.Text('N° ${Formato.numeroComprobante(numero)}', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+              pw.Text('N° $numero', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 3),
               pw.Text('Fecha: ${Formato.fecha(fecha)}', style: const pw.TextStyle(fontSize: 9, color: _gris)),
             ],
@@ -453,7 +453,9 @@ class DocumentosPdf {
 }
 
 /// Nombre de archivo seguro: "Presupuesto_00012_Juan_Perez.pdf".
-String nombreArchivoPdf(String tipo, int numero, String cliente) {
+/// [numero] ya formateado (ver [Formato.numeroComprobante]).
+String nombreArchivoPdf(String tipo, String numero, String cliente) {
   final limpio = cliente.trim().replaceAll(RegExp(r'[^\wáéíóúñÁÉÍÓÚÑ]+'), '_');
-  return '${tipo}_${Formato.numeroComprobante(numero)}${limpio.isEmpty ? '' : '_$limpio'}.pdf';
+  final numeroLimpio = numero.replaceAll(RegExp(r'[^\w-]+'), '_');
+  return '${tipo}_$numeroLimpio${limpio.isEmpty ? '' : '_$limpio'}.pdf';
 }

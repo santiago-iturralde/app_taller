@@ -18,7 +18,7 @@ Future<void> imprimirRecibo(BuildContext context, Pago pago) async {
   if (!await exigirPro(context, FuncionPro.recibosPdf) || !context.mounted) return;
   await DocumentosPdf.abrir(
     context,
-    nombreArchivo: nombreArchivoPdf('Recibo', pago.numero, pago.clienteNombre),
+    nombreArchivo: nombreArchivoPdf('Recibo', Formato.numeroRecibo(pago.numero, pago.numeroAnterior), pago.clienteNombre),
     generar: (pdf) => pdf.recibo(pago),
   );
 }
@@ -27,7 +27,7 @@ Future<void> anularPago(BuildContext context, Pago pago) async {
   final ok = await confirmar(
     context,
     titulo: 'Anular cobro',
-    mensaje: 'El recibo N° ${Formato.numeroComprobante(pago.numero)} por ${Formato.moneda(pago.monto)} quedará anulado'
+    mensaje: 'El recibo N° ${Formato.numeroRecibo(pago.numero, pago.numeroAnterior)} por ${Formato.moneda(pago.monto)} quedará anulado'
         '${pago.ordenId != null ? ' y se descontará de lo cobrado en el trabajo' : ''}'
         '${pago.esVenta ? ' y los productos vuelven al stock' : ''}. '
         'El número no se reutiliza.',
@@ -50,7 +50,7 @@ class FilaPago extends StatelessWidget {
     final tachado = p.anulado ? TextDecoration.lineThrough : null;
     final subtitulo = [
       if (mostrarCliente && p.clienteNombre.isNotEmpty) p.clienteNombre,
-      p.medio.etiqueta,
+      if (p.delSistemaAnterior) 'Sistema anterior' else p.medio.etiqueta,
       Formato.fecha(p.fecha),
     ].join(' · ');
 
@@ -63,7 +63,7 @@ class FilaPago extends StatelessWidget {
         fondo: p.anulado ? context.colores.neutroSuave : context.colores.exitoSuave,
       ),
       title: Text(
-        p.concepto.isEmpty ? 'Cobro N° ${Formato.numeroComprobante(p.numero)}' : p.concepto,
+        p.concepto.isEmpty ? 'Recibo N° ${Formato.numeroRecibo(p.numero, p.numeroAnterior)}' : p.concepto,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(decoration: tachado),
@@ -102,7 +102,7 @@ class FilaPago extends StatelessWidget {
                 value: 'recibo',
                 child: ListTile(
                   leading: const Icon(Icons.receipt_long_outlined),
-                  title: Text('Recibo N° ${Formato.numeroComprobante(p.numero)}'),
+                  title: Text('Recibo N° ${Formato.numeroRecibo(p.numero, p.numeroAnterior)}'),
                   trailing: Sesion.of(context).negocio.permite(FuncionPro.recibosPdf) ? null : const DistintivoPro(),
                 ),
               ),

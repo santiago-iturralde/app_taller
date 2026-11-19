@@ -110,7 +110,7 @@ class _Detalle extends StatelessWidget {
 
   void _imprimir(BuildContext context) => DocumentosPdf.abrir(
         context,
-        nombreArchivo: nombreArchivoPdf('Orden', orden.numero, orden.clienteNombre),
+        nombreArchivo: nombreArchivoPdf('Orden', Formato.numeroComprobante(orden.numero), orden.clienteNombre),
         generar: (pdf) => pdf.orden(orden),
       );
 

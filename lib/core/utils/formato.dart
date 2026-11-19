@@ -36,6 +36,11 @@ abstract final class Formato {
   /// Número de comprobante con ceros a la izquierda: `7` → `00007`.
   static String numeroComprobante(int numero) => numero.toString().padLeft(5, '0');
 
+  /// Número de recibo. Los importados del sistema anterior no tienen número
+  /// nuevo (0) y muestran el que tenían.
+  static String numeroRecibo(int numero, String anterior) =>
+      numero > 0 ? numeroComprobante(numero) : (anterior.isEmpty ? 's/n' : anterior);
+
   static String capitalizar(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
   /// Texto relativo corto: "hoy", "ayer", "hace 3 días", o la fecha.

@@ -118,7 +118,7 @@ class _AccionesRapidas extends StatelessWidget {
         },
       ),
       (Icons.request_quote_outlined, 'Presupuesto', () => nuevoPresupuesto(context)),
-      (Icons.shopping_bag_outlined, 'Venta / cobro', () => nuevoIngreso(context)),
+      (Icons.shopping_bag_outlined, 'Venta / recibo', () => nuevoIngreso(context)),
       if (Sesion.of(context).puede(Permiso.verGastos))
         (Icons.remove_circle_outline_rounded, 'Gasto', () => abrirFormulario(context, const GastoForm())),
     ];

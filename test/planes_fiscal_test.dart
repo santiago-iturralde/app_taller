@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:taller_reparaciones/core/utils/formato.dart';
 import 'package:taller_reparaciones/data/models/caja.dart';
 import 'package:taller_reparaciones/data/models/cambio_plan.dart';
 import 'package:taller_reparaciones/data/models/fiscal.dart';
@@ -151,6 +152,16 @@ void main() {
     expect(f.discriminaIva, isFalse);
     expect(f.asociada, 'B 00003-00000147');
     expect(f.estado, EstadoFactura.autorizada);
+  });
+
+  test('recibos del sistema anterior conservan su número', () {
+    final viejo = Pago.fromMap('p', {'numero': 0, 'monto': 500, 'numeroAnterior': '20250312-101530', 'excluirDeCaja': true});
+    expect(viejo.delSistemaAnterior, isTrue);
+    expect(viejo.toMap()['numeroAnterior'], '20250312-101530');
+    expect(Formato.numeroRecibo(viejo.numero, viejo.numeroAnterior), '20250312-101530');
+    expect(Formato.numeroRecibo(0, ''), 's/n');
+    expect(Formato.numeroRecibo(7, 'x'), '00007');
+    expect(Pago.fromMap('p', {'numero': 7, 'monto': 1}).toMap().containsKey('numeroAnterior'), isFalse);
   });
 
   group('Marca de facturado', () {

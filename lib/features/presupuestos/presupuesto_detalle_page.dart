@@ -41,7 +41,7 @@ class _Detalle extends StatelessWidget {
 
   void _pdf(BuildContext context) => DocumentosPdf.abrir(
         context,
-        nombreArchivo: nombreArchivoPdf('Presupuesto', p.numero, p.clienteNombre),
+        nombreArchivo: nombreArchivoPdf('Presupuesto', Formato.numeroComprobante(p.numero), p.clienteNombre),
         generar: (pdf) => pdf.presupuesto(p),
       );
 
