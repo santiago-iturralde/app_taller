@@ -7,7 +7,7 @@ abstract final class AppInfo {
   /// Versión de compatibilidad de datos. Si en `configuracion/app_info` el
   /// campo `version` es mayor, la app web pide recargar para no operar con
   /// código viejo.
-  static const versionDatos = 4;
+  static const versionDatos = 5;
 
   /// WhatsApp de ventas (formato internacional, sin +). Si está vacío, el
   /// botón de contratar PRO muestra "próximamente".
@@ -24,7 +24,7 @@ abstract final class AppInfo {
   /// Facturación electrónica ARCA. Necesita el backend publicado (ver
   /// docs/PUBLICAR.md, Parte B): mientras esté en `false` se ocultan las
   /// facturas y el plan Básico la muestra como "próximamente".
-  static const facturacionDisponible = false;
+  static const facturacionDisponible = true;
 
   /// Dirección del backend propio (servidor HTTP de functions/, en Render).
   /// Vacío = usar las Cloud Functions de Firebase (requieren plan Blaze).
