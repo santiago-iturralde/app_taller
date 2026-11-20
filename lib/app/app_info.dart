@@ -34,7 +34,8 @@ abstract final class AppInfo {
   /// En la versión web se usa la dirección actual del navegador.
   static const urlWeb = '';
 
-  /// Descarga de la app de Android (se publica junto con la web: ver
-  /// docs/PUBLICAR.md). El aviso de versión nueva la ofrece en el celular.
-  static const urlApk = 'https://taller-app-admin.web.app/descargas/workcontrol.apk';
+  /// Descarga de la app de Android: siempre la última versión publicada en
+  /// GitHub Releases del repositorio público de descargas (Firebase Hosting
+  /// gratis no permite APKs). El aviso de versión nueva la ofrece en el celular.
+  static const urlApk = 'https://github.com/santiago-iturralde/workcontrol-descargas/releases/latest/download/workcontrol.apk';
 }

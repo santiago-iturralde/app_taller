@@ -122,7 +122,7 @@ entrar a facturar, pero la primera factura después de un rato puede tardar ~1 m
 
 En `lib/app/app_info.dart` poné `facturacionDisponible = true`, subí `versionDatos`
 en 1, repetí **A2** y **A3** con el número nuevo y generá el APK nuevo
-(`flutter build apk --release`, copiándolo a `web/descargas/workcontrol.apk` antes de A2).
+(`flutter build apk --release`) y publicalo como se explica en **B6**.
 
 > Alternativa con Blaze: `firebase functions:secrets:set ARCA_CLAVE_MAESTRA`,
 > `firebase deploy --only functions` y dejar `AppInfo.urlServidor` vacío.
@@ -140,6 +140,20 @@ Con un negocio en plan Básico o PRO:
 5. Recién después: datos fiscales → **Producción**, generar el certificado de producción
    en "Administración de Certificados Digitales", asociarlo al servicio de facturación
    electrónica y crear el punto de venta "RECE / Web Services".
+
+---
+
+## B6. Publicar el APK de Android
+
+Firebase Hosting gratis no permite archivos APK, así que se publican en **GitHub
+Releases** del repositorio público `workcontrol-descargas` (sólo tiene el APK; el código
+sigue privado):
+
+1. GitHub → `workcontrol-descargas` → **Releases** → **Draft a new release**.
+2. Tag: la versión (ej. `v2.1.0`). Adjuntar `build/app/outputs/flutter-apk/app-release.apk`
+   **renombrado a `workcontrol.apk`** (siempre ese nombre). **Publish release**.
+3. Recién entonces subir `version` en `configuracion/app_info` (paso A3): la app del celular
+   muestra "Hay una nueva versión → Descargar" y baja la última.
 
 ---
 

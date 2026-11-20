@@ -32,8 +32,6 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
-# APK que se publica en la web (se genera, no va en git)
-/web/descargas/
 
 # Symbolication related
 app.*.symbols
