@@ -1,5 +1,4 @@
-import { HttpsError, onCall } from 'firebase-functions/v2/https';
-import { defineSecret } from 'firebase-functions/params';
+import { HttpsError } from 'firebase-functions/v2/https';
 
 import { CondicionReceptor, Concepto } from '../arca/comprobantes';
 import {
@@ -10,74 +9,73 @@ import {
   probarConexion,
   reintentarFactura,
 } from '../arca/servicio';
-import { exigirMiembro, exigirPlanConFacturacion, texto, usuario } from '../util/seguridad';
-import { REGION } from '../config';
+import { Sesion, exigirMiembro, exigirPlanConFacturacion, exigirSesion, texto } from '../util/seguridad';
 
 /**
- * Clave maestra para cifrar claves privadas y tickets de ARCA.
- * Se configura una sola vez: firebase functions:secrets:set ARCA_CLAVE_MAESTRA
+ * Una acción que la app puede pedir. No depende de cómo se expone: la usan
+ * tanto las Cloud Functions (index.ts) como el servidor HTTP (servidor.ts).
+ * Recibe la sesión ya verificada (o null) y la clave maestra de cifrado.
  */
-const claveMaestra = defineSecret('ARCA_CLAVE_MAESTRA');
-
-const opciones = { region: REGION, secrets: [claveMaestra], timeoutSeconds: 120, memory: '512MiB' as const };
+export type Accion = (datos: unknown, sesion: Sesion | null, claveMaestra: string) => Promise<unknown>;
 
 const CONDICIONES: CondicionReceptor[] = ['responsable_inscripto', 'monotributo', 'exento', 'consumidor_final', 'no_categorizado'];
 
-interface ConNegocio {
-  negocioId?: unknown;
+type Datos = Record<string, any>;
+
+function comoDatos(datos: unknown): Datos {
+  return datos && typeof datos === 'object' && !Array.isArray(datos) ? (datos as Datos) : {};
 }
 
-function negocioId(data: ConNegocio): string {
-  return texto(data?.negocioId, 'el negocio', 128);
+function negocioId(d: Datos): string {
+  return texto(d.negocioId, 'el negocio', 128);
 }
 
 /** Paso 1 de la configuración: genera la solicitud de certificado (CSR). */
-export const arcaGenerarSolicitud = onCall(opciones, async (req) => {
-  const { uid } = usuario(req);
-  const id = negocioId(req.data as ConNegocio);
+const arcaGenerarSolicitud: Accion = async (datos, sesion, clave) => {
+  const { uid } = exigirSesion(sesion);
+  const id = negocioId(comoDatos(datos));
   await exigirMiembro(id, uid, ['owner', 'admin']);
   await exigirPlanConFacturacion(id);
-  return generarSolicitud(id, claveMaestra.value());
-});
+  return generarSolicitud(id, clave);
+};
 
 /** Paso 2: guarda el certificado que entregó ARCA. */
-export const arcaGuardarCertificado = onCall(opciones, async (req) => {
-  const { uid } = usuario(req);
-  const data = req.data as ConNegocio & { certificado?: unknown };
-  const id = negocioId(data);
+const arcaGuardarCertificado: Accion = async (datos, sesion, clave) => {
+  const { uid } = exigirSesion(sesion);
+  const d = comoDatos(datos);
+  const id = negocioId(d);
   await exigirMiembro(id, uid, ['owner', 'admin']);
   await exigirPlanConFacturacion(id);
-  const certificado = texto(data.certificado, 'el certificado', 20_000);
-  return guardarCertificado(id, certificado, claveMaestra.value());
-});
+  return guardarCertificado(id, texto(d.certificado, 'el certificado', 20_000), clave);
+};
 
 /** Paso 3: prueba la conexión con ARCA. */
-export const arcaProbarConexion = onCall(opciones, async (req) => {
-  const { uid } = usuario(req);
-  const id = negocioId(req.data as ConNegocio);
+const arcaProbarConexion: Accion = async (datos, sesion, clave) => {
+  const { uid } = exigirSesion(sesion);
+  const id = negocioId(comoDatos(datos));
   await exigirMiembro(id, uid, ['owner', 'admin']);
   await exigirPlanConFacturacion(id);
-  return probarConexion(id, claveMaestra.value());
-});
+  return probarConexion(id, clave);
+};
 
 /** Emite una factura de un trabajo o de un cobro. Cualquier miembro puede facturar. */
-export const arcaEmitirFactura = onCall(opciones, async (req) => {
-  const { uid } = usuario(req);
-  const data = req.data as ConNegocio & { origen?: any; receptor?: any; concepto?: unknown };
-  const id = negocioId(data);
+const arcaEmitirFactura: Accion = async (datos, sesion, clave) => {
+  const { uid } = exigirSesion(sesion);
+  const d = comoDatos(datos);
+  const id = negocioId(d);
   await exigirMiembro(id, uid);
   await exigirPlanConFacturacion(id);
 
-  const tipoOrigen = data.origen?.tipo;
+  const tipoOrigen = d.origen?.tipo;
   if (tipoOrigen !== 'orden' && tipoOrigen !== 'pago') throw new HttpsError('invalid-argument', 'Origen inválido.');
-  const origenId = texto(data.origen?.id, 'el registro a facturar', 128);
+  const origenId = texto(d.origen?.id, 'el registro a facturar', 128);
   if (origenId.includes('/')) throw new HttpsError('invalid-argument', 'Origen inválido.');
 
-  const r = data.receptor ?? {};
+  const r = d.receptor ?? {};
   const docTipo = r.docTipo;
   if (!['cuit', 'dni', 'consumidor_final'].includes(docTipo)) throw new HttpsError('invalid-argument', 'Tipo de documento inválido.');
   if (!CONDICIONES.includes(r.condicionIva)) throw new HttpsError('invalid-argument', 'Condición frente al IVA inválida.');
-  const concepto = data.concepto === undefined ? undefined : Number(data.concepto);
+  const concepto = d.concepto === undefined ? undefined : Number(d.concepto);
   if (concepto !== undefined && ![1, 2, 3].includes(concepto)) throw new HttpsError('invalid-argument', 'Concepto inválido.');
 
   return emitirFactura(
@@ -93,26 +91,36 @@ export const arcaEmitirFactura = onCall(opciones, async (req) => {
       },
       concepto: concepto as Concepto | undefined,
     },
-    claveMaestra.value(),
+    clave,
   );
-});
+};
 
 /** Verifica o reintenta un comprobante cuyo resultado quedó incierto. */
-export const arcaReintentar = onCall(opciones, async (req) => {
-  const { uid } = usuario(req);
-  const data = req.data as ConNegocio & { facturaId?: unknown };
-  const id = negocioId(data);
+const arcaReintentar: Accion = async (datos, sesion, clave) => {
+  const { uid } = exigirSesion(sesion);
+  const d = comoDatos(datos);
+  const id = negocioId(d);
   await exigirMiembro(id, uid);
   await exigirPlanConFacturacion(id);
-  return reintentarFactura(id, texto(data.facturaId, 'la factura', 128), claveMaestra.value());
-});
+  return reintentarFactura(id, texto(d.facturaId, 'la factura', 128), clave);
+};
 
 /** Anula una factura con su nota de crédito (sólo administradores). */
-export const arcaAnularFactura = onCall(opciones, async (req) => {
-  const { uid } = usuario(req);
-  const data = req.data as ConNegocio & { facturaId?: unknown };
-  const id = negocioId(data);
+const arcaAnularFactura: Accion = async (datos, sesion, clave) => {
+  const { uid } = exigirSesion(sesion);
+  const d = comoDatos(datos);
+  const id = negocioId(d);
   await exigirMiembro(id, uid, ['owner', 'admin']);
   await exigirPlanConFacturacion(id);
-  return emitirNotaCredito(id, uid, texto(data.facturaId, 'la factura', 128), claveMaestra.value());
-});
+  return emitirNotaCredito(id, uid, texto(d.facturaId, 'la factura', 128), clave);
+};
+
+/** Todas las acciones de facturación, por nombre (el que usa la app). */
+export const ACCIONES_ARCA = {
+  arcaGenerarSolicitud,
+  arcaGuardarCertificado,
+  arcaProbarConexion,
+  arcaEmitirFactura,
+  arcaReintentar,
+  arcaAnularFactura,
+} satisfies Record<string, Accion>;

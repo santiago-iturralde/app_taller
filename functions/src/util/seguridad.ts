@@ -1,13 +1,19 @@
 import { getFirestore } from 'firebase-admin/firestore';
-import { CallableRequest, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 
 export type Rol = 'owner' | 'admin' | 'empleado';
 export type Plan = 'free' | 'basico' | 'pro';
 
-/** Usuario autenticado de la llamada, o error. */
-export function usuario(req: CallableRequest<unknown>): { uid: string; email: string } {
-  if (!req.auth) throw new HttpsError('unauthenticated', 'Tenés que iniciar sesión.');
-  return { uid: req.auth.uid, email: String(req.auth.token.email ?? '') };
+/** Usuario que hace la llamada (ya verificado por quien expone la acción). */
+export interface Sesion {
+  uid: string;
+  email: string;
+}
+
+/** Exige una sesión iniciada. */
+export function exigirSesion(sesion: Sesion | null | undefined): Sesion {
+  if (!sesion?.uid) throw new HttpsError('unauthenticated', 'Tenés que iniciar sesión.');
+  return sesion;
 }
 
 /** Verifica que el usuario sea miembro del negocio (y con alguno de los roles). */

@@ -21,11 +21,14 @@ abstract final class AppInfo {
   /// lo limitan las reglas de Firestore).
   static const diasPrueba = 10;
 
-  /// Facturación electrónica ARCA. Necesita el backend (Cloud Functions),
-  /// que requiere el plan Blaze de Firebase: mientras esté en `false` se
-  /// ocultan las facturas y el plan Básico la muestra como "próximamente".
-  /// Para activarla ver docs/PUBLICAR.md (pasos 1, 2 y 4).
+  /// Facturación electrónica ARCA. Necesita el backend publicado (ver
+  /// docs/PUBLICAR.md, Parte B): mientras esté en `false` se ocultan las
+  /// facturas y el plan Básico la muestra como "próximamente".
   static const facturacionDisponible = false;
+
+  /// Dirección del backend propio (servidor HTTP de functions/, en Render).
+  /// Vacío = usar las Cloud Functions de Firebase (requieren plan Blaze).
+  static const urlServidor = 'https://workcontrol-arca.onrender.com';
 
   /// Dirección pública de la app web (para los mensajes de invitación).
   /// En la versión web se usa la dirección actual del navegador.

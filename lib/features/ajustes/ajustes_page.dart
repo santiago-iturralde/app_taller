@@ -11,6 +11,7 @@ import '../../app/sesion.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/widgets/componentes.dart';
 import '../../core/widgets/feedback.dart';
+import '../../data/funciones.dart';
 import '../../data/models/negocio.dart';
 import '../../data/models/rubro.dart';
 import '../planes/planes_page.dart';
@@ -46,7 +47,10 @@ class AjustesPage extends StatelessWidget {
                 if (AppInfo.facturacionDisponible && sesion.puede(Permiso.editarNegocio)) ...[
                   const Seccion('Facturación electrónica'),
                   AppCard(
-                    onTap: () => abrirPagina(context, const ConfigArcaPage()),
+                    onTap: () {
+                      Funciones.despertar();
+                      abrirPagina(context, const ConfigArcaPage());
+                    },
                     child: Row(children: [
                       const IconoTile(Icons.receipt_long_outlined),
                       const SizedBox(width: Espacio.m),

@@ -1,4 +1,5 @@
-// Prueba de punta a punta del backend en los emuladores (sin conectarse a ARCA).
+// Prueba de punta a punta del backend (servidor HTTP de servidor.ts, el que
+// corre en Render) contra los emuladores de Auth y Firestore, sin ARCA.
 // Correr desde functions/:  npm run e2e
 //
 // Verifica: permisos, plan requerido, generación de la solicitud de
@@ -14,16 +15,21 @@ const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { FieldValue, getFirestore, Timestamp } = require('firebase-admin/firestore');
 const forge = require('node-forge');
+const { randomBytes } = require('node:crypto');
+const { crearServidor } = require('../lib/src/servidor.js');
 
 const PROYECTO = 'demo-workcontrol';
-const REGION = 'southamerica-east1';
 const AUTH = process.env.FIREBASE_AUTH_EMULATOR_HOST;
-const FUNCIONES = 'http://127.0.0.1:5101';
 assert.ok(AUTH && process.env.FIRESTORE_EMULATOR_HOST, 'Correr con firebase emulators:exec');
 
 initializeApp({ projectId: PROYECTO });
 const auth = getAuth();
 const db = getFirestore();
+
+// El servidor real, con verificación de tokens de Firebase (del emulador).
+const servidor = crearServidor({ claveMaestra: randomBytes(32).toString('base64'), origenes: [] });
+await new Promise((r) => servidor.listen(0, '127.0.0.1', r));
+const FUNCIONES = `http://127.0.0.1:${servidor.address().port}`;
 
 async function crearUsuario(email, claims) {
   const u = await auth.createUser({ email, password: 'clave-segura-123', emailVerified: true });
@@ -39,7 +45,7 @@ async function crearUsuario(email, claims) {
 
 /** Llama a una función callable como lo hace la app. */
 async function llamar(nombre, datos, usuario) {
-  const r = await fetch(`${FUNCIONES}/${PROYECTO}/${REGION}/${nombre}`, {
+  const r = await fetch(`${FUNCIONES}/${nombre}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(usuario ? { Authorization: `Bearer ${usuario.token}` } : {}) },
     body: JSON.stringify({ data: datos }),
@@ -176,5 +182,6 @@ await paso('pasar a Gratis corta la facturación', async () => {
   assert.equal((await llamar('arcaProbarConexion', { negocioId: N }, duenio)).error, 'FAILED_PRECONDITION');
 });
 
+servidor.close();
 console.log(`\n${pasos} pasos OK`);
 process.exit(0);

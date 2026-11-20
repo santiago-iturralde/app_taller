@@ -10,8 +10,8 @@ Hay dos partes:
 
 - **Parte A — el sistema** (funciona con el plan gratuito Spark de Firebase): reglas,
   app web, panel de administración y planes.
-- **Parte B — facturación electrónica ARCA** (necesita el plan Blaze, porque usa Cloud
-  Functions). Se hace cuando haya un cliente que quiera facturar.
+- **Parte B — facturación electrónica ARCA**: necesita un servidor, que corre gratis en
+  Render.
 
 ---
 
@@ -80,48 +80,52 @@ rechazan cualquier cambio de plan que no venga del administrador con su registro
 
 # Parte B — Facturación electrónica ARCA
 
-## B1. Activar el plan Blaze en Firebase
+La facturación necesita un servidor propio (la clave del certificado fiscal no puede
+estar en la app, y el navegador no puede hablar directo con ARCA). El servidor está en
+`functions/` y corre de dos formas, con el mismo código:
 
-Las Cloud Functions requieren el plan **Blaze** (pago por uso, con la misma cuota
-gratuita que Spark: con pocos clientes el costo es nulo o de centavos).
+- **Render (gratis)** — lo que usamos: `functions/src/servidor.ts`, configurado en
+  [`render.yaml`](../render.yaml).
+- **Cloud Functions** (plan Blaze de Firebase) — alternativa: `functions/src/index.ts`.
 
-1. Consola de Firebase → ⚙️ → **Uso y facturación** → **Modificar plan** → Blaze.
-   Con algunas tarjetas Google pide un **prepago de USD 30**, que queda como saldo a
-   favor y es reembolsable al cerrar la cuenta de facturación.
-2. Recomendado: en Google Cloud → Facturación → **Presupuestos y alertas**, creá una
-   alerta (por ejemplo USD 5/mes). Ojo: la alerta avisa, no corta el gasto.
-
-## B2. Crear la clave maestra de cifrado
+## B1. Clave maestra de cifrado
 
 Con esta clave se cifran las claves privadas de ARCA de cada negocio.
 
 ```powershell
-# Genera 32 bytes aleatorios (generador criptográfico) en base64:
 $b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)
-
-firebase functions:secrets:set ARCA_CLAVE_MAESTRA
-# Pegá el valor generado cuando lo pida.
 ```
 
-**Guardá ese valor en un lugar seguro** (gestor de contraseñas). No va en el código ni
-en git. Si se pierde, cada negocio tendría que volver a generar su certificado de ARCA.
+**Guardala en un lugar seguro** (gestor de contraseñas). No va en el código ni en git.
+Si se pierde, cada negocio tiene que volver a generar su certificado de ARCA.
 
-## B3. Backend (Cloud Functions)
+## B2. Cuenta de servicio de Firebase
 
-```powershell
-cd functions
-npm ci
-npm test
-cd ..
-firebase deploy --only functions
-# Borra automáticamente las imágenes viejas del servidor (evita costos de almacenamiento):
-firebase functions:artifacts:setpolicy
-```
+El servidor la usa para leer y escribir en Firestore y verificar las sesiones.
+Consola de Firebase → ⚙️ → **Cuentas de servicio** → **Generar nueva clave privada**.
+Se descarga un `.json`: su contenido va en Render (paso B3) y después **borrás el archivo**.
+
+## B3. Crear el servicio en Render
+
+1. El código tiene que estar en GitHub (recomendado: repositorio **privado**).
+2. Render → **New** → **Blueprint** → elegir el repositorio. Render lee `render.yaml`.
+3. Te pide dos valores secretos:
+   - `ARCA_CLAVE_MAESTRA`: la clave del paso B1.
+   - `FIREBASE_SERVICE_ACCOUNT`: el **contenido completo** del `.json` del paso B2.
+4. **Apply**. Cuando termine, `https://workcontrol-arca.onrender.com/salud` responde
+   `{"ok":true}`. Si Render le dio otra dirección, actualizá `AppInfo.urlServidor`.
+
+El plan gratuito duerme el servidor tras 15 minutos sin uso: la app lo despierta al
+entrar a facturar, pero la primera factura después de un rato puede tardar ~1 minuto.
 
 ## B4. Prender la facturación en la app
 
 En `lib/app/app_info.dart` poné `facturacionDisponible = true`, subí `versionDatos`
-en 1 y repetí **A2** y **A3** con el número nuevo.
+en 1, repetí **A2** y **A3** con el número nuevo y generá el APK nuevo
+(`flutter build apk --release`, copiándolo a `web/descargas/workcontrol.apk` antes de A2).
+
+> Alternativa con Blaze: `firebase functions:secrets:set ARCA_CLAVE_MAESTRA`,
+> `firebase deploy --only functions` y dejar `AppInfo.urlServidor` vacío.
 
 ## B5. Probar primero en homologación
 
@@ -144,6 +148,6 @@ Con un negocio en plan Básico o PRO:
 - **Reglas o índices**: volver a publicar la versión anterior del archivo con
   `git checkout <commit> -- firestore.rules` y `firebase deploy --only firestore:rules`.
 - **Web**: Consola → Hosting → historial de versiones → **Revertir**.
-- **Functions**: `firebase functions:log` muestra los errores.
+- **Servidor de facturación**: Render → el servicio → **Logs** muestra los errores.
 - Los datos del sistema anterior (`users/{uid}/...`) nunca se borran: siempre se puede
   volver a migrar.

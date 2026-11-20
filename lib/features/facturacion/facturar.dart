@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/formato.dart';
 import '../../core/widgets/componentes.dart';
 import '../../core/widgets/feedback.dart';
+import '../../data/funciones.dart';
 import '../../data/models/cliente.dart';
 import '../../data/models/fiscal.dart';
 import '../../data/models/negocio.dart';
@@ -25,6 +26,7 @@ Future<void> facturar(
 }) async {
   final sesion = Sesion.of(context);
   if (!await exigirPro(context, FuncionPro.facturacion) || !context.mounted) return;
+  Funciones.despertar();
 
   final config = await sesion.facturacion.config().first;
   final estado = (await sesion.facturacion.estado().first)[config.ambiente];

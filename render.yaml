@@ -1,0 +1,23 @@
+# Backend de WorkControl en Render (plan gratuito): facturación ARCA.
+# Render → New → Blueprint → este repositorio. Ver docs/PUBLICAR.md, Parte B.
+services:
+  - type: web
+    name: workcontrol-arca
+    runtime: node
+    plan: free
+    region: virginia
+    rootDir: functions
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /salud
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: ORIGENES
+        value: https://taller-app-admin.web.app,https://taller-app-admin.firebaseapp.com
+      # Secretos: se cargan a mano en Render (nunca en el código).
+      - key: ARCA_CLAVE_MAESTRA
+        sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT
+        sync: false

@@ -27,8 +27,8 @@ defecto, pero el motor es el mismo para todos.
   lo más vendido, ganancia bruta y margen por producto, inventario valorizado.
 - **Equipo (PRO)**: el dueño invita por email a administradores y empleados, con permisos por rol.
 - **Facturación electrónica ARCA (Básico/PRO)**: facturas A, B y C y notas de crédito desde cada trabajo
-  o venta, con CAE, código QR y PDF; configuración guiada del certificado. Necesita el plan Blaze de
-  Firebase: se prende con `AppInfo.facturacionDisponible` (ver la guía de publicación).
+  o venta, con CAE, código QR y PDF; configuración guiada del certificado. Necesita el backend: Cloud
+  Functions (plan Blaze) o el servidor gratuito en Render: se prende con `AppInfo.facturacionDisponible` (ver la guía de publicación).
 - **Planes**: Gratis, Básico y PRO, prueba gratis para negocios nuevos y aviso de vencimiento.
 - **Panel de administración** (sólo para el dueño de la plataforma): negocios, planes, vencimientos,
   cobros registrados y auditoría de cada cambio.
@@ -44,7 +44,7 @@ lib/          App Flutter
   core/       Tema, componentes de UI, formularios, PDF y utilidades
   data/       Modelos, repositorios (acceso a Firestore) y migración
   features/   Una carpeta por sección: inicio, trabajos, clientes, …
-functions/    Backend (Cloud Functions, TypeScript)
+functions/    Backend (TypeScript): servidor HTTP en Render o Cloud Functions
   src/arca/   Facturación electrónica: WSAA, WSFEv1, certificados, QR
   src/handlers/  Funciones que llama la app (ARCA)
 tools/        Tests de reglas y script de administrador

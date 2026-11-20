@@ -1,7 +1,7 @@
 {
   "name": "workcontrol-functions",
   "private": true,
-  "description": "Backend de WorkControl: facturación electrónica ARCA y administración de planes",
+  "description": "Backend de WorkControl: facturación electrónica ARCA (Cloud Functions o servidor HTTP)",
   "main": "lib/src/index.js",
   "engines": {
     "node": "22"
@@ -10,7 +10,8 @@
     "build": "tsc -p tsconfig.json",
     "test": "tsc -p tsconfig.json && node --test \"lib/test/**/*.test.js\"",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "e2e": "npm run build && node e2e/preparar.mjs && firebase emulators:exec --config ../firebase.e2e.json --project demo-workcontrol --only auth,firestore,functions \"node e2e/e2e.mjs\""
+    "e2e": "npm run build && firebase emulators:exec --config ../firebase.e2e.json --project demo-workcontrol --only auth,firestore \"node e2e/e2e.mjs\"",
+    "start": "node lib/src/servidor.js"
   },
   "dependencies": {
     "fast-xml-parser": "4.5.7",
