@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/db.dart';
+import '../../data/funciones.dart';
 import '../theme/app_theme.dart';
 
 /// Mensaje breve en la parte inferior. Usar [error] para fallas.
@@ -30,6 +31,14 @@ void mostrarMensaje(BuildContext context, String texto, {bool error = false, Sna
 /// Traduce errores técnicos a un mensaje entendible.
 String mensajeDeError(Object error) {
   if (error is ErrorDeNegocio) return error.mensaje;
+  // Los mensajes del servidor ya están pensados para mostrarse.
+  if (error is ErrorServidor) {
+    return switch (error.codigo) {
+      'unauthenticated' => 'Tu sesión venció. Volvé a ingresar.',
+      'not-found' => 'Esta función no está disponible en el servidor. Actualizá la app.',
+      _ => error.mensaje,
+    };
+  }
   // Los mensajes del servidor ya están pensados para mostrarse.
   if (error is FirebaseFunctionsException) {
     return switch (error.code) {
